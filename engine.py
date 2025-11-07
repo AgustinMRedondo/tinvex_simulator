@@ -21,24 +21,17 @@ class SimulationEngine:
     IMPORTANT: ALL PURCHASES ADD CAPITAL TO THE LIQUIDITY POOL
     """
 
-    def __init__(
-        self,
-        total_supply: int = 100000000,  # Default 100M tokens
-        initial_price: float = 1.0,
-        min_tokens: int = 5,
-        max_tokens: int = 30,
-        max_slippage: float = 0.05
-    ):
-        # Configuration parameters
-        self.total_supply = total_supply
-        self.initial_price = initial_price
-        self.min_tokens = min_tokens
-        self.max_tokens = max_tokens
-        self.max_slippage = max_slippage
+    def __init__(self):
+        # Configuration parameters (set via setup, no defaults)
+        self.total_supply = 0
+        self.initial_price = 1.0  # Only hardcoded value
+        self.min_tokens = 5
+        self.max_tokens = 30
+        self.max_slippage = 0.05
 
         # Market state variables
         self.tokens_in_circulation = 0.0
-        self.tokens_available_primary = float(total_supply)
+        self.tokens_available_primary = 0.0
         self.tokens_available_secondary = 0.0
         self.current_liquidity = 0.0
         self.current_price = 0.0
