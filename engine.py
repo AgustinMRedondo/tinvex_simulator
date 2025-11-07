@@ -389,7 +389,12 @@ class SimulationEngine:
         self.tokens_in_circulation -= q  # X decreases
         self.tokens_available_secondary += q  # S increases
         self.current_liquidity -= payout_eur  # Y decreases
-        # Note: current_price NOT updated here (will be calculated in next operation)
+
+        # ✅ UPDATE PRICE AFTER SELL: P = Y/X
+        if self.tokens_in_circulation > 0:
+            self.current_price = self.current_liquidity / self.tokens_in_circulation
+        else:
+            self.current_price = 0
 
         # Register transaction
         transaction = {

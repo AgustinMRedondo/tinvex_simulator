@@ -291,8 +291,8 @@ async def quick_simulation():
 
 @app.post("/api/trading/setup")
 async def setup_auto_trading(
-    total_supply: int = 100,
-    num_users: int = 10,
+    total_supply: int = 100000,
+    num_users: int = 20,
     initial_liquidity_percentage: float = 20.0,
     transaction_interval_seconds: float = 0.5
 ):
