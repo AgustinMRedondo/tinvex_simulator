@@ -225,24 +225,33 @@
             const maxSlippage = document.getElementById('maxSlippage').value;
             const txInterval = document.getElementById('txInterval').value;
 
+            const config = {
+                total_supply: parseInt(totalSupply),
+                num_users: parseInt(numUsers),
+                initial_liquidity_percentage: parseFloat(initialLiquidity),
+                max_slippage_percentage: parseFloat(maxSlippage),
+                transaction_interval_seconds: parseFloat(txInterval)
+            };
+
+            console.log('🚀 Setup config:', config);
+
             try {
                 const response = await fetch(`${API_BASE}/api/trading/setup`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        total_supply: parseInt(totalSupply),
-                        num_users: parseInt(numUsers),
-                        initial_liquidity_percentage: parseFloat(initialLiquidity),
-                        max_slippage_percentage: parseFloat(maxSlippage),
-                        transaction_interval_seconds: parseFloat(txInterval)
-                    })
+                    body: JSON.stringify(config)
                 });
 
                 const data = await response.json();
-                
+                console.log('✅ Setup response:', data);
+
                 if (data.success) {
-                    document.getElementById('tradingStatus').innerHTML = 
-                        `<span class="text-green-400">✅ Setup Complete! Ready to trade (55% buy / 45% sell)</span>`;
+                    const expectedLiquidity = config.total_supply * (config.initial_liquidity_percentage / 100);
+                    console.log(`📊 Expected liquidity: €${expectedLiquidity.toLocaleString()}`);
+                    console.log(`📊 Actual liquidity: €${data.initial_state.current_liquidity.toLocaleString()}`);
+
+                    document.getElementById('tradingStatus').innerHTML =
+                        `<span class="text-green-400">✅ Setup Complete! Supply: ${config.total_supply.toLocaleString()}, Liquidity: €${data.initial_state.current_liquidity.toLocaleString()}</span>`;
                     updateStats();
                     
                     // Reset chart

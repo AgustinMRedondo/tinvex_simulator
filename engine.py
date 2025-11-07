@@ -23,7 +23,7 @@ class SimulationEngine:
 
     def __init__(
         self,
-        total_supply: int = 100,
+        total_supply: int = 100000,  # Default 100k tokens
         initial_price: float = 1.0,
         min_tokens: int = 5,
         max_tokens: int = 30,
