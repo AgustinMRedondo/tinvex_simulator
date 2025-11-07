@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinvex AMM Simulator - Auto Trading</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="container mx-auto p-8 max-w-7xl">
+        <h1 class="text-5xl font-bold mb-2 text-center bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
+            Tinvex AMM Simulator
+        </h1>
+        <p class="text-center text-gray-400 mb-8">Continuous Auto-Trading with Rugpull Detection</p>
+        
+        <!-- Setup Panel -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-blue-400">🎮 Setup Simulation</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Total Supply</label>
+                    <input type="number" id="totalSupply" value="100000" 
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Number of Users</label>
+                    <input type="number" id="numUsers" value="20" 
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Initial Liquidity (%)</label>
+                    <input type="number" id="initialLiquidity" value="20" 
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2 text-gray-300">Transaction Interval (seconds)</label>
+                <input type="number" id="txInterval" value="0.5" step="0.1"
+                       class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                <p class="text-xs text-gray-400 mt-1">Time between each transaction (0.5s = 2 trades/second)</p>
+            </div>
+            
+            <button onclick="setupTrading()" 
+                    class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                🚀 Setup Auto-Trading
+            </button>
+        </div>
+        
+        <!-- Control Panel -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-purple-400">⚡ Trading Controls</h2>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="startTrading()" id="startBtn"
+                        class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                    ▶️ START Trading
+                </button>
+                <button onclick="stopTrading()" id="stopBtn"
+                        class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                    ⏹️ STOP Trading
+                </button>
+            </div>
+            
+            <div id="tradingStatus" class="mt-4 p-4 bg-gray-700 rounded-lg text-center">
+                <span class="text-gray-400">Status: Ready to setup</span>
+            </div>
+        </div>
+        
+        <!-- Market Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Current Price</div>
+                <div id="currentPrice" class="text-3xl font-bold text-green-400">€0.00</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Liquidity Pool</div>
+                <div id="liquidity" class="text-3xl font-bold text-blue-400">€0</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Total Trades</div>
+                <div id="totalTrades" class="text-3xl font-bold text-purple-400">0</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Price Change</div>
+                <div id="priceChange" class="text-3xl font-bold text-yellow-400">0%</div>
+            </div>
+        </div>
+        
+        <!-- Price Chart -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-green-400">📈 Price History</h2>
+            <canvas id="priceChart" height="100"></canvas>
+        </div>
+        
+        <!-- Market State -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-yellow-400">📊 Market State</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <div class="text-gray-400">Circulation</div>
+                    <div id="circulation" class="text-lg font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Primary Available</div>
+                    <div id="primaryAvailable" class="text-lg font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Secondary Available</div>
+                    <div id="secondaryAvailable" class="text-lg font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Total Supply</div>
+                    <div id="totalSupplyDisplay" class="text-lg font-semibold">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let updateInterval = null;
+        let priceChart = null;
+
+        // Initialize Chart
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        priceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Price (EUR)',
+                    data: [],
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { 
+                        display: true,
+                        labels: { color: '#9CA3AF' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: { color: '#9CA3AF' },
+                        grid: { color: '#374151' }
+                    },
+                    x: {
+                        ticks: { color: '#9CA3AF' },
+                        grid: { color: '#374151' }
+                    }
+                }
+            }
+        });
+
+        async function setupTrading() {
+            const totalSupply = document.getElementById('totalSupply').value;
+            const numUsers = document.getElementById('numUsers').value;
+            const initialLiquidity = document.getElementById('initialLiquidity').value;
+            const txInterval = document.getElementById('txInterval').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/trading/setup`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        total_supply: parseInt(totalSupply),
+                        num_users: parseInt(numUsers),
+                        initial_liquidity_percentage: parseFloat(initialLiquidity),
+                        transaction_interval_seconds: parseFloat(txInterval)
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('tradingStatus').innerHTML = 
+                        `<span class="text-green-400">✅ Setup Complete! Ready to trade (55% buy / 45% sell)</span>`;
+                    updateStats();
+                    
+                    // Reset chart
+                    priceChart.data.labels = [];
+                    priceChart.data.datasets[0].data = [];
+                    priceChart.update();
+                } else {
+                    document.getElementById('tradingStatus').innerHTML = 
+                        `<span class="text-red-400">❌ Setup Failed: ${data.message}</span>`;
+                }
+            } catch (error) {
+                console.error('Setup error:', error);
+                document.getElementById('tradingStatus').innerHTML = 
+                    `<span class="text-red-400">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function startTrading() {
+            try {
+                const response = await fetch(`${API_BASE}/api/trading/start`, {method: 'POST'});
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('tradingStatus').innerHTML = 
+                        `<span class="text-green-400 animate-pulse">🔥 Trading ACTIVE - Auto-updating...</span>`;
+                    
+                    // Start auto-update
+                    if (updateInterval) clearInterval(updateInterval);
+                    updateInterval = setInterval(updateStats, 2000); // Update every 2 seconds
+                } else {
+                    document.getElementById('tradingStatus').innerHTML = 
+                        `<span class="text-red-400">❌ ${data.message}</span>`;
+                }
+            } catch (error) {
+                console.error('Start error:', error);
+            }
+        }
+
+        async function stopTrading() {
+            try {
+                const response = await fetch(`${API_BASE}/api/trading/stop`, {method: 'POST'});
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('tradingStatus').innerHTML = 
+                        `<span class="text-yellow-400">⏹️ Trading STOPPED - ${data.stats.total_trades} trades executed</span>`;
+                    
+                    // Stop auto-update
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                        updateInterval = null;
+                    }
+                    
+                    updateStats();
+                } else {
+                    document.getElementById('tradingStatus').innerHTML = 
+                        `<span class="text-red-400">❌ ${data.message}</span>`;
+                }
+            } catch (error) {
+                console.error('Stop error:', error);
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const statusResponse = await fetch(`${API_BASE}/api/trading/status`);
+                const statusData = await statusResponse.json();
+                
+                if (!statusData.success) return;
+                
+                const state = statusData.current_state;
+                const stats = statusData.stats;
+                
+                // Update stats
+                document.getElementById('currentPrice').textContent = 
+                    `€${state.current_price.toFixed(4)}`;
+                document.getElementById('liquidity').textContent = 
+                    `€${state.current_liquidity.toFixed(0)}`;
+                document.getElementById('totalTrades').textContent = 
+                    statusData.trade_count;
+                
+                if (stats.price_change_percent !== undefined) {
+                    const change = stats.price_change_percent;
+                    const changeColor = change >= 0 ? 'text-green-400' : 'text-red-400';
+                    document.getElementById('priceChange').className = `text-3xl font-bold ${changeColor}`;
+                    document.getElementById('priceChange').textContent = 
+                        `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                }
+                
+                // Update market state
+                document.getElementById('circulation').textContent = 
+                    state.tokens_in_circulation.toFixed(0);
+                document.getElementById('primaryAvailable').textContent = 
+                    state.tokens_available_primary.toFixed(0);
+                document.getElementById('secondaryAvailable').textContent = 
+                    state.tokens_available_secondary.toFixed(0);
+                document.getElementById('totalSupplyDisplay').textContent = 
+                    state.total_supply;
+                
+                // Update chart
+                if (stats.price_history && stats.price_history.length > 0) {
+                    const labels = stats.price_history.map((_, i) => i + 1);
+                    const prices = stats.price_history.map(p => p.price);
+                    
+                    priceChart.data.labels = labels;
+                    priceChart.data.datasets[0].data = prices;
+                    priceChart.update('none'); // No animation for live updates
+                }
+                
+            } catch (error) {
+                console.error('Update error:', error);
+            }
+        }
+
+        // Initial stats load
+        updateStats();
+    </script>
+</body>
+</html>
+
