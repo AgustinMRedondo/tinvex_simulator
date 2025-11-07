@@ -327,13 +327,16 @@ async def setup_auto_trading(
     
     # Step 3: LP distributes 100% of tokens to users
     lp_balance = int(engine.user_balance[0]["tokens"])
+    distribution_result = None
     if lp_balance > 0:
-        result = engine.liquidity_distribution(lp_balance)
-    
+        distribution_result = engine.liquidity_distribution(lp_balance)
+        if not distribution_result.get("success"):
+            return {"success": False, "message": f"Failed to distribute tokens: {distribution_result.get('message')}"}
+
     # Step 4: Setup trading engine
     config = TradeConfig(transaction_interval_seconds=transaction_interval_seconds)
     trading_engine = TradingEngine(engine, config)
-    
+
     return {
         "success": True,
         "message": "Auto-trading setup completed",
@@ -341,7 +344,12 @@ async def setup_auto_trading(
             "total_supply": total_supply,
             "num_users": num_users,
             "initial_liquidity": initial_liquidity_percentage,
+            "max_slippage": max_slippage_percentage,
             "transaction_interval_seconds": transaction_interval_seconds
+        },
+        "distribution": {
+            "tokens_distributed": lp_balance if distribution_result else 0,
+            "users_received": len(distribution_result.get("allocations", [])) if distribution_result else 0
         },
         "initial_state": engine.current_info()
     }
