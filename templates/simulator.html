@@ -74,8 +74,8 @@
         <!-- Control Panel -->
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
             <h2 class="text-2xl font-semibold mb-4 text-purple-400">⚡ Trading Controls</h2>
-            
-            <div class="grid grid-cols-2 gap-4">
+
+            <div class="grid grid-cols-3 gap-4">
                 <button onclick="startTrading()" id="startBtn"
                         class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
                     ▶️ START Trading
@@ -84,8 +84,12 @@
                         class="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
                     ⏹️ STOP Trading
                 </button>
+                <button onclick="resetSimulation()" id="resetBtn"
+                        class="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                    🔄 RESET
+                </button>
             </div>
-            
+
             <div id="tradingStatus" class="mt-4 p-4 bg-gray-700 rounded-lg text-center">
                 <span class="text-gray-400">Status: Ready to setup</span>
             </div>
@@ -330,24 +334,76 @@
             try {
                 const response = await fetch(`${API_BASE}/api/trading/stop`, {method: 'POST'});
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    document.getElementById('tradingStatus').innerHTML = 
+                    document.getElementById('tradingStatus').innerHTML =
                         `<span class="text-yellow-400">⏹️ Trading STOPPED - ${data.stats.total_trades} trades executed</span>`;
-                    
+
                     // Stop auto-update
                     if (updateInterval) {
                         clearInterval(updateInterval);
                         updateInterval = null;
                     }
-                    
+
                     updateStats();
                 } else {
-                    document.getElementById('tradingStatus').innerHTML = 
+                    document.getElementById('tradingStatus').innerHTML =
                         `<span class="text-red-400">❌ ${data.message}</span>`;
                 }
             } catch (error) {
                 console.error('Stop error:', error);
+            }
+        }
+
+        async function resetSimulation() {
+            try {
+                console.log('🔄 Resetting simulation...');
+
+                // Stop trading if active
+                await fetch(`${API_BASE}/api/trading/stop`, {method: 'POST'});
+
+                // Clear update interval
+                if (updateInterval) {
+                    clearInterval(updateInterval);
+                    updateInterval = null;
+                }
+
+                // Reset chart
+                priceChart.data.labels = [];
+                priceChart.data.datasets[0].data = [];
+                priceChart.update();
+
+                // Reset market stats
+                document.getElementById('currentPrice').textContent = '€0.00';
+                document.getElementById('liquidity').textContent = '€0';
+                document.getElementById('totalTrades').textContent = '0';
+                document.getElementById('priceChange').textContent = '0.00%';
+                document.getElementById('priceChange').className = 'text-3xl font-bold text-gray-400';
+
+                // Reset market state
+                document.getElementById('circulation').textContent = '0';
+                document.getElementById('primaryAvailable').textContent = '0';
+                document.getElementById('secondaryAvailable').textContent = '0';
+                document.getElementById('totalSupplyDisplay').textContent = '0';
+
+                // Clear transactions table
+                document.getElementById('transactionsTable').innerHTML =
+                    '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-400">No transactions yet</td></tr>';
+
+                // Clear top traders table
+                document.getElementById('topTradersTable').innerHTML =
+                    '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-400">No traders yet</td></tr>';
+
+                // Reset status message
+                document.getElementById('tradingStatus').innerHTML =
+                    '<span class="text-gray-400">Status: Ready to setup</span>';
+
+                console.log('✅ Simulation reset complete!');
+
+            } catch (error) {
+                console.error('Reset error:', error);
+                document.getElementById('tradingStatus').innerHTML =
+                    `<span class="text-red-400">❌ Reset Error: ${error.message}</span>`;
             }
         }
 
