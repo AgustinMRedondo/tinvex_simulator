@@ -14,7 +14,7 @@ from trading_engine import TradingEngine, TradeConfig
 from api_models import (
     InitRequest, CreateUsersRequest, LiquidityDistributionRequest,
     BuyPrimaryRequest, SellRequest, BuySecondaryRequest,
-    MarketStateResponse, ApiResponse
+    MarketStateResponse, ApiResponse, AutoTradingSetupRequest
 )
 import asyncio
 
@@ -290,44 +290,30 @@ async def quick_simulation():
 # ============================================
 
 @app.post("/api/trading/setup")
-async def setup_auto_trading(
-    total_supply: int,
-    num_users: int,
-    initial_liquidity_percentage: float,
-    max_slippage_percentage: float,
-    buy_probability_percentage: float,
-    panic_sell_probability_percentage: float,
-    transaction_interval_seconds: float
-):
+async def setup_auto_trading(request: AutoTradingSetupRequest):
     """
     Setup auto-trading simulation
     ALL parameters are REQUIRED - no defaults
 
     Args:
-        total_supply: Total token supply
-        num_users: Number of users to create
-        initial_liquidity_percentage: % of supply for initial liquidity (at €1/token)
-        max_slippage_percentage: Maximum slippage % for secondary market
-        buy_probability_percentage: % chance of buy vs sell
-        panic_sell_probability_percentage: % chance of selling 100% of holdings
-        transaction_interval_seconds: Seconds between transactions
+        request: AutoTradingSetupRequest with all required parameters
     """
     global trading_engine
 
-    # ✅ CRITICAL: Set ALL parameters from inputs (no defaults)
-    engine.total_supply = total_supply
-    engine.max_slippage = max_slippage_percentage / 100.0  # Convert % to decimal
+    # ✅ CRITICAL: Set ALL parameters from request (no defaults)
+    engine.total_supply = request.total_supply
+    engine.max_slippage = request.max_slippage_percentage / 100.0  # Convert % to decimal
 
     # Reset engine (will use the updated total_supply)
     engine.reset()
 
     # Step 1: Initialize with LP
-    result = engine.initial_liquidity(initial_liquidity_percentage)
+    result = engine.initial_liquidity(request.initial_liquidity_percentage)
     if not result.get("success"):
         return {"success": False, "message": "Failed to initialize liquidity"}
 
     # Step 2: Create users
-    result = engine.create_users(num_users)
+    result = engine.create_users(request.num_users)
     if not result.get("success"):
         return {"success": False, "message": "Failed to create users"}
 
@@ -341,9 +327,9 @@ async def setup_auto_trading(
 
     # Step 4: Setup trading engine with custom probabilities
     config = TradeConfig(
-        transaction_interval_seconds=transaction_interval_seconds,
-        buy_probability=buy_probability_percentage / 100.0,  # Convert % to decimal
-        panic_sell_probability=panic_sell_probability_percentage / 100.0  # Convert % to decimal
+        transaction_interval_seconds=request.transaction_interval_seconds,
+        buy_probability=request.buy_probability_percentage / 100.0,  # Convert % to decimal
+        panic_sell_probability=request.panic_sell_probability_percentage / 100.0  # Convert % to decimal
     )
     trading_engine = TradingEngine(engine, config)
 
@@ -351,13 +337,13 @@ async def setup_auto_trading(
         "success": True,
         "message": "Auto-trading setup completed",
         "config": {
-            "total_supply": total_supply,
-            "num_users": num_users,
-            "initial_liquidity_percentage": initial_liquidity_percentage,
-            "max_slippage_percentage": max_slippage_percentage,
-            "buy_probability_percentage": buy_probability_percentage,
-            "panic_sell_probability_percentage": panic_sell_probability_percentage,
-            "transaction_interval_seconds": transaction_interval_seconds
+            "total_supply": request.total_supply,
+            "num_users": request.num_users,
+            "initial_liquidity_percentage": request.initial_liquidity_percentage,
+            "max_slippage_percentage": request.max_slippage_percentage,
+            "buy_probability_percentage": request.buy_probability_percentage,
+            "panic_sell_probability_percentage": request.panic_sell_probability_percentage,
+            "transaction_interval_seconds": request.transaction_interval_seconds
         },
         "distribution": {
             "tokens_distributed": lp_balance if distribution_result else 0,

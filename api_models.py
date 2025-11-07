@@ -53,6 +53,17 @@ class SimulateRequest(BaseModel):
     )
 
 
+class AutoTradingSetupRequest(BaseModel):
+    """Setup auto-trading simulation - ALL parameters required"""
+    total_supply: int = Field(..., gt=0, description="Total token supply")
+    num_users: int = Field(..., gt=0, description="Number of users to create")
+    initial_liquidity_percentage: float = Field(..., gt=0, le=100, description="% of supply for initial liquidity")
+    max_slippage_percentage: float = Field(..., gt=0, le=100, description="Maximum slippage % for secondary market")
+    buy_probability_percentage: float = Field(..., ge=0, le=100, description="% chance of buy vs sell")
+    panic_sell_probability_percentage: float = Field(..., ge=0, le=100, description="% chance of selling 100%")
+    transaction_interval_seconds: float = Field(..., gt=0, description="Seconds between transactions")
+
+
 # Response models
 class TransactionResponse(BaseModel):
     """Single transaction details"""
