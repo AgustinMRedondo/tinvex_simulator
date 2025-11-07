@@ -94,7 +94,32 @@
             <h2 class="text-2xl font-semibold mb-4 text-green-400">📈 Price History</h2>
             <canvas id="priceChart" height="100"></canvas>
         </div>
-        
+
+        <!-- Transactions Log (DexScreener style) -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-cyan-400">💱 Recent Transactions</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-3 px-2">Type</th>
+                            <th class="text-left py-3 px-2">User</th>
+                            <th class="text-right py-3 px-2">Amount</th>
+                            <th class="text-right py-3 px-2">Price</th>
+                            <th class="text-right py-3 px-2">Total (EUR)</th>
+                            <th class="text-right py-3 px-2">Market</th>
+                            <th class="text-right py-3 px-2">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTable" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-gray-500">No transactions yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Market State -->
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
             <h2 class="text-2xl font-semibold mb-4 text-yellow-400">📊 Market State</h2>
@@ -288,14 +313,100 @@
                 if (stats.price_history && stats.price_history.length > 0) {
                     const labels = stats.price_history.map((_, i) => i + 1);
                     const prices = stats.price_history.map(p => p.price);
-                    
+
                     priceChart.data.labels = labels;
                     priceChart.data.datasets[0].data = prices;
                     priceChart.update('none'); // No animation for live updates
                 }
-                
+
+                // Update transactions table
+                await updateTransactions();
+
             } catch (error) {
                 console.error('Update error:', error);
+            }
+        }
+
+        async function updateTransactions() {
+            try {
+                const response = await fetch(`${API_BASE}/api/transactions?limit=20`);
+                const data = await response.json();
+
+                if (!data.success || !data.data || data.data.length === 0) {
+                    return;
+                }
+
+                const tbody = document.getElementById('transactionsTable');
+
+                // Get last 20 transactions in reverse order (newest first)
+                const transactions = data.data.slice().reverse();
+
+                tbody.innerHTML = transactions.map(tx => {
+                    // Determine transaction type and styling
+                    let type, typeColor, market, amount, price, total;
+
+                    if (tx.action === 'purchase_primary') {
+                        type = '📈 BUY';
+                        typeColor = 'text-green-400';
+                        market = 'Primary';
+                        amount = tx.tokens_bought.toFixed(2);
+                        price = tx.price.toFixed(4);
+                        total = tx.amount_eur.toFixed(2);
+                    } else if (tx.action === 'buy_from_secondary') {
+                        type = '📈 BUY';
+                        typeColor = 'text-green-400';
+                        market = 'Secondary';
+                        amount = tx.tokens_bought.toFixed(2);
+                        price = tx.exec_price.toFixed(4);
+                        total = tx.amount_eur.toFixed(2);
+                    } else if (tx.action === 'sell_simple') {
+                        type = '📉 SELL';
+                        typeColor = 'text-red-400';
+                        market = 'Pool';
+                        amount = tx.tokens_sold.toFixed(2);
+                        price = tx.exec_price.toFixed(4);
+                        total = tx.payout_eur.toFixed(2);
+                    } else if (tx.action === 'liquidity') {
+                        type = '💧 LP';
+                        typeColor = 'text-blue-400';
+                        market = 'Initial';
+                        amount = tx.tokens_bought.toFixed(2);
+                        price = tx.price.toFixed(4);
+                        total = tx.amount_eur.toFixed(2);
+                    } else if (tx.action === 'liquidity_distribution') {
+                        type = '🎁 DIST';
+                        typeColor = 'text-purple-400';
+                        market = 'Airdrop';
+                        amount = tx.total_distributed || 0;
+                        price = '-';
+                        total = '-';
+                    } else {
+                        type = tx.action;
+                        typeColor = 'text-gray-400';
+                        market = '-';
+                        amount = '-';
+                        price = '-';
+                        total = '-';
+                    }
+
+                    const userName = tx.user_name || `User_${tx.user_id}`;
+                    const timeAgo = 'Just now';
+
+                    return `
+                        <tr class="hover:bg-gray-700 transition-colors">
+                            <td class="py-2 px-2 ${typeColor} font-semibold">${type}</td>
+                            <td class="py-2 px-2 text-gray-300">${userName}</td>
+                            <td class="py-2 px-2 text-right text-white">${amount}</td>
+                            <td class="py-2 px-2 text-right text-gray-300">€${price}</td>
+                            <td class="py-2 px-2 text-right text-white">€${total}</td>
+                            <td class="py-2 px-2 text-right text-cyan-400">${market}</td>
+                            <td class="py-2 px-2 text-right text-gray-400 text-xs">${timeAgo}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Transactions update error:', error);
             }
         }
 
