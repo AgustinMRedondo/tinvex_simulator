@@ -291,16 +291,17 @@ async def quick_simulation():
 
 @app.post("/api/trading/setup")
 async def setup_auto_trading(
-    total_supply: int = 100000000,
-    num_users: int = 20,
-    initial_liquidity_percentage: float = 5.0,
-    max_slippage_percentage: float = 5.0,
-    buy_probability_percentage: float = 55.0,
-    panic_sell_probability_percentage: float = 5.0,
-    transaction_interval_seconds: float = 0.5
+    total_supply: int,
+    num_users: int,
+    initial_liquidity_percentage: float,
+    max_slippage_percentage: float,
+    buy_probability_percentage: float,
+    panic_sell_probability_percentage: float,
+    transaction_interval_seconds: float
 ):
     """
     Setup auto-trading simulation
+    ALL parameters are REQUIRED - no defaults
 
     Args:
         total_supply: Total token supply
@@ -309,11 +310,11 @@ async def setup_auto_trading(
         max_slippage_percentage: Maximum slippage % for secondary market
         buy_probability_percentage: % chance of buy vs sell
         panic_sell_probability_percentage: % chance of selling 100% of holdings
-        transaction_interval_seconds: Seconds between transactions (default 0.5)
+        transaction_interval_seconds: Seconds between transactions
     """
     global trading_engine
 
-    # ✅ CRITICAL: Update parameters BEFORE reset
+    # ✅ CRITICAL: Set ALL parameters from inputs (no defaults)
     engine.total_supply = total_supply
     engine.max_slippage = max_slippage_percentage / 100.0  # Convert % to decimal
 
