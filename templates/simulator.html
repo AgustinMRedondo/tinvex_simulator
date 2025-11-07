@@ -18,20 +18,25 @@
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
             <h2 class="text-2xl font-semibold mb-4 text-blue-400">🎮 Setup Simulation</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Total Supply</label>
-                    <input type="number" id="totalSupply" value="100000" 
+                    <input type="number" id="totalSupply" value="100000"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Number of Users</label>
-                    <input type="number" id="numUsers" value="20" 
+                    <input type="number" id="numUsers" value="20"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Initial Liquidity (%)</label>
-                    <input type="number" id="initialLiquidity" value="20" 
+                    <input type="number" id="initialLiquidity" value="20"
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Max Slippage (%)</label>
+                    <input type="number" id="maxSlippage" value="5" step="0.1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
                 </div>
             </div>
@@ -121,7 +126,7 @@
         </div>
 
         <!-- Market State -->
-        <div class="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
             <h2 class="text-2xl font-semibold mb-4 text-yellow-400">📊 Market State</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
@@ -140,6 +145,32 @@
                     <div class="text-gray-400">Total Supply</div>
                     <div id="totalSupplyDisplay" class="text-lg font-semibold">0</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Top Traders -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-amber-400">🏆 Top Traders</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-3 px-2">#</th>
+                            <th class="text-left py-3 px-2">Trader</th>
+                            <th class="text-right py-3 px-2">Invested</th>
+                            <th class="text-right py-3 px-2">Total Value</th>
+                            <th class="text-right py-3 px-2">Realized P&L</th>
+                            <th class="text-right py-3 px-2">Unrealized P&L</th>
+                            <th class="text-right py-3 px-2">Total P&L</th>
+                            <th class="text-right py-3 px-2">P&L %</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topTradersTable" class="divide-y divide-gray-700">
+                        <tr>
+                            <td colspan="8" class="text-center py-8 text-gray-500">No trading activity yet</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -191,6 +222,7 @@
             const totalSupply = document.getElementById('totalSupply').value;
             const numUsers = document.getElementById('numUsers').value;
             const initialLiquidity = document.getElementById('initialLiquidity').value;
+            const maxSlippage = document.getElementById('maxSlippage').value;
             const txInterval = document.getElementById('txInterval').value;
 
             try {
@@ -201,6 +233,7 @@
                         total_supply: parseInt(totalSupply),
                         num_users: parseInt(numUsers),
                         initial_liquidity_percentage: parseFloat(initialLiquidity),
+                        max_slippage_percentage: parseFloat(maxSlippage),
                         transaction_interval_seconds: parseFloat(txInterval)
                     })
                 });
@@ -322,6 +355,9 @@
                 // Update transactions table
                 await updateTransactions();
 
+                // Update top traders table
+                await updateTopTraders();
+
             } catch (error) {
                 console.error('Update error:', error);
             }
@@ -407,6 +443,44 @@
 
             } catch (error) {
                 console.error('Transactions update error:', error);
+            }
+        }
+
+        async function updateTopTraders() {
+            try {
+                const response = await fetch(`${API_BASE}/api/trading/top-traders?limit=10`);
+                const data = await response.json();
+
+                if (!data.success || !data.data || data.data.length === 0) {
+                    return;
+                }
+
+                const tbody = document.getElementById('topTradersTable');
+                const traders = data.data;
+
+                tbody.innerHTML = traders.map((trader, index) => {
+                    const pnlColor = trader.total_pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                    const pnlSign = trader.total_pnl >= 0 ? '+' : '';
+
+                    const rankColor = index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-500';
+                    const rankIcon = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+
+                    return `
+                        <tr class="hover:bg-gray-700 transition-colors">
+                            <td class="py-2 px-2 ${rankColor} font-semibold">${rankIcon}</td>
+                            <td class="py-2 px-2 text-gray-300">${trader.user_name}</td>
+                            <td class="py-2 px-2 text-right text-blue-300">€${trader.total_invested.toFixed(2)}</td>
+                            <td class="py-2 px-2 text-right text-white font-semibold">€${trader.total_value.toFixed(2)}</td>
+                            <td class="py-2 px-2 text-right text-purple-300">€${trader.realized_pnl.toFixed(2)}</td>
+                            <td class="py-2 px-2 text-right text-cyan-300">€${trader.unrealized_pnl.toFixed(2)}</td>
+                            <td class="py-2 px-2 text-right ${pnlColor} font-semibold">${pnlSign}€${trader.total_pnl.toFixed(2)}</td>
+                            <td class="py-2 px-2 text-right ${pnlColor} font-bold">${pnlSign}${trader.pnl_percentage.toFixed(1)}%</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Top traders update error:', error);
             }
         }
 

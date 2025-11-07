@@ -294,23 +294,26 @@ async def setup_auto_trading(
     total_supply: int = 100000,
     num_users: int = 20,
     initial_liquidity_percentage: float = 20.0,
+    max_slippage_percentage: float = 5.0,
     transaction_interval_seconds: float = 0.5
 ):
     """
     Setup auto-trading simulation
-    
+
     Args:
         total_supply: Total token supply
         num_users: Number of users to create
         initial_liquidity_percentage: % of supply for initial liquidity
+        max_slippage_percentage: Maximum slippage % for secondary market
         transaction_interval_seconds: Seconds between transactions (default 0.5)
     """
     global trading_engine
-    
+
     # Reset engine
     engine.reset()
     engine.total_supply = total_supply
     engine.tokens_available_primary = float(total_supply)
+    engine.max_slippage = max_slippage_percentage / 100.0  # Convert % to decimal
     
     # Step 1: Initialize with LP
     result = engine.initial_liquidity(initial_liquidity_percentage)
@@ -432,25 +435,45 @@ async def get_trading_status():
 async def get_price_history(limit: int = 100):
     """
     Get price history for charting
-    
+
     Args:
         limit: Maximum number of data points to return
     """
     global trading_engine
-    
+
     if not trading_engine:
         return {
             "success": False,
             "message": "Trading engine not initialized",
             "data": []
         }
-    
+
     history = trading_engine.price_history[-limit:] if trading_engine.price_history else []
-    
+
     return {
         "success": True,
         "message": f"Retrieved {len(history)} price points",
         "data": history
+    }
+
+
+@app.get("/api/trading/top-traders")
+async def get_top_traders(limit: int = 10):
+    """
+    Get top traders ranked by total value
+
+    Args:
+        limit: Maximum number of traders to return
+
+    Returns:
+        List of traders with investment and P&L metrics
+    """
+    traders = engine.get_top_traders(limit)
+
+    return {
+        "success": True,
+        "message": f"Retrieved top {len(traders)} traders",
+        "data": traders
     }
 
 

@@ -48,6 +48,9 @@ class SimulationEngine:
         self.users_list: List[Dict] = []
         self.transaction_history: List[Dict] = []
 
+        # User statistics for P&L tracking
+        self.user_stats: Dict[int, Dict] = {}  # {user_id: {total_invested, total_received}}
+
     def reset(self):
         """Reset simulation to initial state"""
         self.tokens_in_circulation = 0.0
@@ -58,6 +61,15 @@ class SimulationEngine:
         self.user_balance = {}
         self.users_list = []
         self.transaction_history = []
+        self.user_stats = {}
+
+    def _ensure_user_stats(self, user_id: int):
+        """Ensure user stats dictionary exists for user"""
+        if user_id not in self.user_stats:
+            self.user_stats[user_id] = {
+                "total_invested": 0.0,  # Total EUR spent on buys
+                "total_received": 0.0,  # Total EUR received from sells
+            }
 
     def current_info(self) -> Dict:
         """Get current market state"""
@@ -319,6 +331,10 @@ class SimulationEngine:
 
             self.user_balance[user_id]["tokens"] += desired_tokens
 
+            # Track investment
+            self._ensure_user_stats(user_id)
+            self.user_stats[user_id]["total_invested"] += amount_eur
+
             # Register transaction
             transaction = {
                 "user_id": user_id,
@@ -395,6 +411,10 @@ class SimulationEngine:
             self.current_price = self.current_liquidity / self.tokens_in_circulation
         else:
             self.current_price = 0
+
+        # Track revenue from sell
+        self._ensure_user_stats(user_id)
+        self.user_stats[user_id]["total_received"] += payout_eur
 
         # Register transaction
         transaction = {
@@ -494,6 +514,10 @@ class SimulationEngine:
         self.current_liquidity += cost_eur  # Y increases - ALL CAPITAL TO POOL
         self.current_price = exec_price  # Update price
         self.user_balance[user_id]["tokens"] += q
+
+        # Track investment
+        self._ensure_user_stats(user_id)
+        self.user_stats[user_id]["total_invested"] += cost_eur
 
         # Log transaction
         transaction = {
@@ -616,3 +640,54 @@ class SimulationEngine:
             "message": f"Executed {successful}/{len(orders)} secondary buy orders",
             "results": results
         }
+
+    def get_top_traders(self, limit: int = 10) -> List[Dict]:
+        """
+        Get top traders ranked by total value (realized + unrealized gains)
+
+        Returns list of traders with:
+        - user_id, user_name
+        - total_invested: EUR spent on purchases
+        - total_received: EUR from sells (realized P&L)
+        - current_tokens: tokens still held
+        - unrealized_value: current_tokens * current_price
+        - total_value: total_received + unrealized_value
+        - realized_pnl: total_received (revenue from sells)
+        - unrealized_pnl: unrealized_value (current holdings value)
+        - total_pnl: total_value - total_invested
+        """
+        traders = []
+
+        for user_id, balance_info in self.user_balance.items():
+            if user_id == 0:  # Skip LP
+                continue
+
+            self._ensure_user_stats(user_id)
+            stats = self.user_stats[user_id]
+
+            current_tokens = float(balance_info.get("tokens", 0))
+            unrealized_value = current_tokens * self.current_price
+
+            total_invested = stats.get("total_invested", 0.0)
+            total_received = stats.get("total_received", 0.0)
+            total_value = total_received + unrealized_value
+            total_pnl = total_value - total_invested
+
+            traders.append({
+                "user_id": user_id,
+                "user_name": balance_info.get("name", f"User_{user_id}"),
+                "total_invested": total_invested,
+                "total_received": total_received,
+                "current_tokens": current_tokens,
+                "unrealized_value": unrealized_value,
+                "total_value": total_value,
+                "realized_pnl": total_received,
+                "unrealized_pnl": unrealized_value,
+                "total_pnl": total_pnl,
+                "pnl_percentage": (total_pnl / total_invested * 100) if total_invested > 0 else 0
+            })
+
+        # Sort by total_value descending
+        traders.sort(key=lambda x: x["total_value"], reverse=True)
+
+        return traders[:limit]
