@@ -15,6 +15,7 @@ class TradeConfig:
     """Configuration for trading simulation"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
     buy_probability: float = 0.55  # 55% buy, 45% sell
+    panic_sell_probability: float = 0.05  # 5% chance of selling 100% of holdings
     min_tokens: int = 1
     max_tokens: int = 10000
 
@@ -48,14 +49,15 @@ class TradingEngine:
         """Determine if next action should be buy (55%) or sell (45%)"""
         return random.random() < self.config.buy_probability
     
-    def get_trade_amount(self, user_id: int, is_buy: bool) -> float:
+    def get_trade_amount(self, user_id: int, is_buy: bool, force_all: bool = False) -> float:
         """
         Get random trade amount
-        
+
         Args:
             user_id: User ID
             is_buy: True for buy, False for sell
-            
+            force_all: If True and selling, sell all tokens (panic sell)
+
         Returns:
             Amount of tokens to trade
         """
@@ -65,10 +67,14 @@ class TradingEngine:
         else:
             # Random sell amount (capped to user balance)
             user_balance = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
-            
+
             if user_balance <= 0:
                 return 0
-            
+
+            # Panic sell: sell 100% of holdings
+            if force_all:
+                return user_balance
+
             max_sell = min(user_balance, self.config.max_tokens)
             return random.uniform(1, max_sell) if max_sell >= 1 else 0
     
@@ -157,12 +163,13 @@ class TradingEngine:
                 return {"success": False, "reason": result.get("message")}
             
             else:
-                # Sell
-                amount = self.get_trade_amount(user_id, is_buy=False)
-                
+                # Sell - check for panic sell
+                is_panic_sell = random.random() < self.config.panic_sell_probability
+                amount = self.get_trade_amount(user_id, is_buy=False, force_all=is_panic_sell)
+
                 if amount <= 0:
                     return {"success": False, "reason": "User has no tokens to sell"}
-                
+
                 result = self.engine.sell(user_id, amount)
                 
                 if result.get("success"):
