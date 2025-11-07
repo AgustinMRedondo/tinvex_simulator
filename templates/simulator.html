@@ -286,6 +286,15 @@
                         console.error(`   Actual: €${data.initial_state.current_liquidity.toLocaleString()}`);
                     }
 
+                    // Verify liquidity distribution
+                    if (data.distribution) {
+                        console.log(`🎁 Liquidity Distribution:`);
+                        console.log(`   Tokens distributed: ${data.distribution.tokens_distributed.toLocaleString()}`);
+                        console.log(`   Users received: ${data.distribution.users_received}`);
+                    } else {
+                        console.warn('⚠️ No distribution data returned!');
+                    }
+
                     const sellProbability = 100 - config.buy_probability_percentage;
                     document.getElementById('tradingStatus').innerHTML =
                         `<span class="text-green-400">✅ Setup Complete!<br>

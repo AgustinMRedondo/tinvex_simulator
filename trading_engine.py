@@ -85,64 +85,65 @@ class TradingEngine:
     def execute_single_trade(self) -> Dict:
         """
         Execute a single trade (buy or sell)
-        
+
         Returns:
             Trade result dictionary
         """
         user_id = self.get_random_user()
         if not user_id:
             return {"success": False, "reason": "No eligible users"}
-        
+
         should_buy = self.should_buy()
-        
-        # Primary phase: only buys allowed
-        if self.is_primary_phase():
-            if not should_buy:
-                should_buy = True  # Force buy in primary phase
-            
-            amount = self.get_trade_amount(user_id, is_buy=True)
-            amount = min(amount, self.engine.tokens_available_primary)
-            
-            if amount <= 0:
-                return {"success": False, "reason": "No primary tokens available"}
-            
-            result = self.engine.purchase_primary([{
-                "id": user_id,
-                "name": self.engine.user_balance[user_id]["name"],
-                "desired_tokens": amount
-            }])
-            
-            if result.get("success"):
-                self.trade_count += 1
-                self.price_history.append({
-                    "trade_number": self.trade_count,
-                    "price": self.engine.current_price,
-                    "timestamp": time.time(),
-                    "action": "buy_primary"
-                })
-                return {
-                    "success": True,
-                    "trade_number": self.trade_count,
-                    "user_id": user_id,
-                    "action": "buy_primary",
-                    "amount": amount,
-                    "price": self.engine.current_price,
-                    "timestamp": time.time()
-                }
-            return {"success": False, "reason": result.get("message")}
-        
-        # Secondary phase: buys or sells
-        else:
-            if should_buy:
-                # Buy from secondary
+
+        # ✅ ALLOW SELLS DURING PRIMARY PHASE
+        # Users can sell tokens they received from liquidity_distribution
+        # while primary market is still available
+
+        if should_buy:
+            # Try to buy from primary first, then secondary
+            if self.is_primary_phase():
+                # BUY FROM PRIMARY
+                amount = self.get_trade_amount(user_id, is_buy=True)
+                amount = min(amount, self.engine.tokens_available_primary)
+
+                if amount <= 0:
+                    return {"success": False, "reason": "No primary tokens available"}
+
+                result = self.engine.purchase_primary([{
+                    "id": user_id,
+                    "name": self.engine.user_balance[user_id]["name"],
+                    "desired_tokens": amount
+                }])
+
+                if result.get("success"):
+                    self.trade_count += 1
+                    self.price_history.append({
+                        "trade_number": self.trade_count,
+                        "price": self.engine.current_price,
+                        "timestamp": time.time(),
+                        "action": "buy_primary"
+                    })
+                    return {
+                        "success": True,
+                        "trade_number": self.trade_count,
+                        "user_id": user_id,
+                        "action": "buy_primary",
+                        "amount": amount,
+                        "price": self.engine.current_price,
+                        "timestamp": time.time()
+                    }
+                return {"success": False, "reason": result.get("message")}
+
+            else:
+                # BUY FROM SECONDARY
                 if self.engine.tokens_available_secondary <= 0:
                     return {"success": False, "reason": "No secondary supply"}
-                
+
                 amount = self.get_trade_amount(user_id, is_buy=True)
                 amount = min(amount, self.engine.tokens_available_secondary)
-                
+
                 result = self.engine.purchase_secondary(user_id, amount)
-                
+
                 if result.get("success"):
                     self.trade_count += 1
                     self.price_history.append({
@@ -161,35 +162,35 @@ class TradingEngine:
                         "timestamp": time.time()
                     }
                 return {"success": False, "reason": result.get("message")}
-            
-            else:
-                # Sell - check for panic sell
-                is_panic_sell = random.random() < self.config.panic_sell_probability
-                amount = self.get_trade_amount(user_id, is_buy=False, force_all=is_panic_sell)
 
-                if amount <= 0:
-                    return {"success": False, "reason": "User has no tokens to sell"}
+        else:
+            # SELL - allowed in BOTH primary and secondary phases
+            is_panic_sell = random.random() < self.config.panic_sell_probability
+            amount = self.get_trade_amount(user_id, is_buy=False, force_all=is_panic_sell)
 
-                result = self.engine.sell(user_id, amount)
-                
-                if result.get("success"):
-                    self.trade_count += 1
-                    self.price_history.append({
-                        "trade_number": self.trade_count,
-                        "price": self.engine.current_price,
-                        "timestamp": time.time(),
-                        "action": "sell"
-                    })
-                    return {
-                        "success": True,
-                        "trade_number": self.trade_count,
-                        "user_id": user_id,
-                        "action": "sell",
-                        "amount": amount,
-                        "price": self.engine.current_price,
-                        "timestamp": time.time()
-                    }
-                return {"success": False, "reason": result.get("message")}
+            if amount <= 0:
+                return {"success": False, "reason": "User has no tokens to sell"}
+
+            result = self.engine.sell(user_id, amount)
+
+            if result.get("success"):
+                self.trade_count += 1
+                self.price_history.append({
+                    "trade_number": self.trade_count,
+                    "price": self.engine.current_price,
+                    "timestamp": time.time(),
+                    "action": "sell"
+                })
+                return {
+                    "success": True,
+                    "trade_number": self.trade_count,
+                    "user_id": user_id,
+                    "action": "sell",
+                    "amount": amount,
+                    "price": self.engine.current_price,
+                    "timestamp": time.time()
+                }
+            return {"success": False, "reason": result.get("message")}
     
     async def run_continuous(self):
         """
