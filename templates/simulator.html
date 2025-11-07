@@ -100,6 +100,29 @@
             <canvas id="priceChart" height="100"></canvas>
         </div>
 
+        <!-- Market State -->
+        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
+            <h2 class="text-2xl font-semibold mb-4 text-yellow-400">📊 Market State</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <div class="text-gray-400">Tokens in Circulation</div>
+                    <div id="circulation" class="text-lg font-semibold text-white">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Primary Market</div>
+                    <div id="primaryAvailable" class="text-lg font-semibold text-blue-400">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Secondary Market</div>
+                    <div id="secondaryAvailable" class="text-lg font-semibold text-purple-400">0</div>
+                </div>
+                <div>
+                    <div class="text-gray-400">Total Supply</div>
+                    <div id="totalSupplyDisplay" class="text-lg font-semibold text-green-400">0</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Transactions Log (DexScreener style) -->
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
             <h2 class="text-2xl font-semibold mb-4 text-cyan-400">💱 Recent Transactions</h2>
@@ -122,29 +145,6 @@
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- Market State -->
-        <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
-            <h2 class="text-2xl font-semibold mb-4 text-yellow-400">📊 Market State</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                    <div class="text-gray-400">Circulation</div>
-                    <div id="circulation" class="text-lg font-semibold">0</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Primary Available</div>
-                    <div id="primaryAvailable" class="text-lg font-semibold">0</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Secondary Available</div>
-                    <div id="secondaryAvailable" class="text-lg font-semibold">0</div>
-                </div>
-                <div>
-                    <div class="text-gray-400">Total Supply</div>
-                    <div id="totalSupplyDisplay" class="text-lg font-semibold">0</div>
-                </div>
             </div>
         </div>
 
