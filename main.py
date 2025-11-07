@@ -309,22 +309,23 @@ async def setup_auto_trading(
     """
     global trading_engine
 
-    # Reset engine
-    engine.reset()
+    # ✅ CRITICAL: Update parameters BEFORE reset
     engine.total_supply = total_supply
-    engine.tokens_available_primary = float(total_supply)
     engine.max_slippage = max_slippage_percentage / 100.0  # Convert % to decimal
-    
+
+    # Reset engine (will use the updated total_supply)
+    engine.reset()
+
     # Step 1: Initialize with LP
     result = engine.initial_liquidity(initial_liquidity_percentage)
     if not result.get("success"):
         return {"success": False, "message": "Failed to initialize liquidity"}
-    
+
     # Step 2: Create users
     result = engine.create_users(num_users)
     if not result.get("success"):
         return {"success": False, "message": "Failed to create users"}
-    
+
     # Step 3: LP distributes 100% of tokens to users
     lp_balance = int(engine.user_balance[0]["tokens"])
     distribution_result = None
@@ -343,8 +344,8 @@ async def setup_auto_trading(
         "config": {
             "total_supply": total_supply,
             "num_users": num_users,
-            "initial_liquidity": initial_liquidity_percentage,
-            "max_slippage": max_slippage_percentage,
+            "initial_liquidity_percentage": initial_liquidity_percentage,
+            "max_slippage_percentage": max_slippage_percentage,
             "transaction_interval_seconds": transaction_interval_seconds
         },
         "distribution": {
