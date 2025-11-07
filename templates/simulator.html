@@ -21,8 +21,9 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Total Supply</label>
-                    <input type="number" id="totalSupply" value="100000"
+                    <input type="number" id="totalSupply" value="100000000"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">Default: 100M tokens</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Number of Users</label>
@@ -31,13 +32,29 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Initial Liquidity (%)</label>
-                    <input type="number" id="initialLiquidity" value="20"
+                    <input type="number" id="initialLiquidity" value="5" step="0.1"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">% of supply at price €1</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Max Slippage (%)</label>
                     <input type="number" id="maxSlippage" value="5" step="0.1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Buy Probability (%)</label>
+                    <input type="number" id="buyProbability" value="55" step="1" min="0" max="100"
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">Chance of buy vs sell (remaining % is sell)</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Panic Sell Probability (%)</label>
+                    <input type="number" id="panicSellProbability" value="5" step="0.1" min="0" max="100"
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">Chance of selling 100% of holdings</p>
                 </div>
             </div>
             
@@ -223,6 +240,8 @@
             const numUsers = document.getElementById('numUsers').value;
             const initialLiquidity = document.getElementById('initialLiquidity').value;
             const maxSlippage = document.getElementById('maxSlippage').value;
+            const buyProbability = document.getElementById('buyProbability').value;
+            const panicSellProbability = document.getElementById('panicSellProbability').value;
             const txInterval = document.getElementById('txInterval').value;
 
             const config = {
@@ -230,10 +249,16 @@
                 num_users: parseInt(numUsers),
                 initial_liquidity_percentage: parseFloat(initialLiquidity),
                 max_slippage_percentage: parseFloat(maxSlippage),
+                buy_probability_percentage: parseFloat(buyProbability),
+                panic_sell_probability_percentage: parseFloat(panicSellProbability),
                 transaction_interval_seconds: parseFloat(txInterval)
             };
 
             console.log('🚀 Setup config:', config);
+            console.log(`   Total Supply: ${config.total_supply.toLocaleString()} tokens`);
+            console.log(`   Initial Liquidity: ${config.initial_liquidity_percentage}%`);
+            console.log(`   Expected tokens: ${(config.total_supply * config.initial_liquidity_percentage / 100).toLocaleString()}`);
+            console.log(`   Expected liquidity (at €1/token): €${(config.total_supply * config.initial_liquidity_percentage / 100).toLocaleString()}`);
 
             try {
                 const response = await fetch(`${API_BASE}/api/trading/setup`, {
@@ -250,8 +275,19 @@
                     console.log(`📊 Expected liquidity: €${expectedLiquidity.toLocaleString()}`);
                     console.log(`📊 Actual liquidity: €${data.initial_state.current_liquidity.toLocaleString()}`);
 
+                    // Verify liquidity matches expectation
+                    if (Math.abs(data.initial_state.current_liquidity - expectedLiquidity) > 1) {
+                        console.error('⚠️ MISMATCH! Expected liquidity does not match actual!');
+                        console.error(`   Expected: €${expectedLiquidity.toLocaleString()}`);
+                        console.error(`   Actual: €${data.initial_state.current_liquidity.toLocaleString()}`);
+                    }
+
+                    const sellProbability = 100 - config.buy_probability_percentage;
                     document.getElementById('tradingStatus').innerHTML =
-                        `<span class="text-green-400">✅ Setup Complete! Supply: ${config.total_supply.toLocaleString()}, Liquidity: €${data.initial_state.current_liquidity.toLocaleString()}</span>`;
+                        `<span class="text-green-400">✅ Setup Complete!<br>
+                         Supply: ${config.total_supply.toLocaleString()} |
+                         Liquidity: €${data.initial_state.current_liquidity.toLocaleString()} |
+                         Buy: ${config.buy_probability_percentage}% / Sell: ${sellProbability}%</span>`;
                     updateStats();
                     
                     // Reset chart

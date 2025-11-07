@@ -291,10 +291,12 @@ async def quick_simulation():
 
 @app.post("/api/trading/setup")
 async def setup_auto_trading(
-    total_supply: int = 100000,
+    total_supply: int = 100000000,
     num_users: int = 20,
-    initial_liquidity_percentage: float = 20.0,
+    initial_liquidity_percentage: float = 5.0,
     max_slippage_percentage: float = 5.0,
+    buy_probability_percentage: float = 55.0,
+    panic_sell_probability_percentage: float = 5.0,
     transaction_interval_seconds: float = 0.5
 ):
     """
@@ -303,8 +305,10 @@ async def setup_auto_trading(
     Args:
         total_supply: Total token supply
         num_users: Number of users to create
-        initial_liquidity_percentage: % of supply for initial liquidity
+        initial_liquidity_percentage: % of supply for initial liquidity (at €1/token)
         max_slippage_percentage: Maximum slippage % for secondary market
+        buy_probability_percentage: % chance of buy vs sell
+        panic_sell_probability_percentage: % chance of selling 100% of holdings
         transaction_interval_seconds: Seconds between transactions (default 0.5)
     """
     global trading_engine
@@ -334,8 +338,12 @@ async def setup_auto_trading(
         if not distribution_result.get("success"):
             return {"success": False, "message": f"Failed to distribute tokens: {distribution_result.get('message')}"}
 
-    # Step 4: Setup trading engine
-    config = TradeConfig(transaction_interval_seconds=transaction_interval_seconds)
+    # Step 4: Setup trading engine with custom probabilities
+    config = TradeConfig(
+        transaction_interval_seconds=transaction_interval_seconds,
+        buy_probability=buy_probability_percentage / 100.0,  # Convert % to decimal
+        panic_sell_probability=panic_sell_probability_percentage / 100.0  # Convert % to decimal
+    )
     trading_engine = TradingEngine(engine, config)
 
     return {
@@ -346,6 +354,8 @@ async def setup_auto_trading(
             "num_users": num_users,
             "initial_liquidity_percentage": initial_liquidity_percentage,
             "max_slippage_percentage": max_slippage_percentage,
+            "buy_probability_percentage": buy_probability_percentage,
+            "panic_sell_probability_percentage": panic_sell_probability_percentage,
             "transaction_interval_seconds": transaction_interval_seconds
         },
         "distribution": {
