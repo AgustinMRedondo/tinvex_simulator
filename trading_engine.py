@@ -100,21 +100,17 @@ class TradingEngine:
     def should_buy(self) -> bool:
         """
         Determine if next action should be buy or sell
-        Uses configured buy_probability in PRIMARY market
-        DYNAMICALLY ADJUSTED based on secondary market health in SECONDARY market (if enabled)
+        DYNAMICALLY ADJUSTED based on secondary market health (ALWAYS, not just when primary exhausted)
 
-        LOGIC: Keep secondary market with healthy supply
-        - Secondary LOW → MORE SELLS (reduce buy_prob) → Refill secondary market
-        - Secondary HIGH → MORE BUYS (increase buy_prob) → Reduce secondary excess
+        SIMPLIFIED LOGIC - Applies ALWAYS based on secondary health:
+        - Secondary LOW → MORE SELLS to refill
+        - Secondary HIGH → MORE BUYS to reduce
         """
         # Base buy probability from config
         buy_prob = self.config.buy_probability
 
-        # ONLY apply dynamic adjustments if:
-        # 1. Dynamic adjustment is enabled
-        # 2. We are in SECONDARY market (primary exhausted)
-        # 3. Secondary market health requires adjustment
-        if self.config.dynamic_adjustment_enabled and self.engine.tokens_available_primary == 0:
+        # Apply dynamic adjustments ALWAYS based on secondary market health
+        if self.config.dynamic_adjustment_enabled:
             # Get secondary market ratio (0-1)
             total_supply = self.engine.total_supply
             secondary_tokens = self.engine.tokens_available_secondary
