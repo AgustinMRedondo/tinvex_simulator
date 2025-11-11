@@ -14,7 +14,7 @@ from dataclasses import dataclass
 class TradeConfig:
     """Configuration for trading simulation - ALL parameters configurable"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
-    buy_probability: float = 0.50  # 50% buy, 50% sell (BALANCED)
+    buy_probability: float = 0.60  # 60% buy, 40% sell - FAN TOKENS: people want to buy & hold
     panic_sell_probability: float = 0.02  # 2% chance
 
     # Buy volumes
@@ -41,17 +41,17 @@ class TradeConfig:
 
     max_consecutive_failures: int = 50
 
-    # DYNAMIC BUY ADJUSTMENT - ALL CONFIGURABLE (no hardcoding)
-    # Logic: Secondary LOW → More SELLS to refill | Secondary HIGH → More BUYS to reduce
+    # DYNAMIC BUY ADJUSTMENT - GENTLE adjustments for natural fan token behavior
+    # Logic: When secondary low, gently encourage sells to refill (without extremes)
     dynamic_adjustment_enabled: bool = True  # Enable/disable dynamic buy probability
     secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = critical LOW
-    secondary_low_ratio: float = 0.03  # Secondary < 3% of supply = low
-    secondary_high_ratio: float = 0.50  # Secondary > 50% of supply = high
-    buy_boost_critical: float = 0.30  # Subtract 30% from buy_prob when critical (more sells)
-    buy_boost_low: float = 0.15  # Subtract 15% from buy_prob when low (more sells)
-    buy_reduce_high: float = 0.15  # Add 15% to buy_prob when high (more buys)
-    max_buy_probability: float = 0.80  # Cap at 80% buy
-    min_buy_probability: float = 0.35  # Floor at 35% buy
+    secondary_low_ratio: float = 0.05  # Secondary < 5% of supply = low
+    secondary_high_ratio: float = 0.30  # Secondary > 30% of supply = high
+    buy_boost_critical: float = 0.10  # Subtract 10% from buy_prob when critical (gentle)
+    buy_boost_low: float = 0.05  # Subtract 5% from buy_prob when low (very gentle)
+    buy_reduce_high: float = 0.10  # Add 10% to buy_prob when high (gentle)
+    max_buy_probability: float = 0.75  # Cap at 75% buy (realistic max)
+    min_buy_probability: float = 0.45  # Floor at 45% buy (still more buys than sells)
 
     # SECONDARY MARKET PROTECTION - ALL CONFIGURABLE
     min_secondary_tokens: int = 10  # Don't allow buy if secondary < this
