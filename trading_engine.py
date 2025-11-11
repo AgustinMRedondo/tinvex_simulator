@@ -43,13 +43,14 @@ class TradeConfig:
     max_consecutive_failures: int = 50
 
     # DYNAMIC BUY ADJUSTMENT - ALL CONFIGURABLE (no hardcoding)
+    # Logic: Secondary LOW → More SELLS to refill | Secondary HIGH → More BUYS to reduce
     dynamic_adjustment_enabled: bool = True  # Enable/disable dynamic buy probability
-    secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = critical
+    secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = critical LOW
     secondary_low_ratio: float = 0.03  # Secondary < 3% of supply = low
     secondary_high_ratio: float = 0.50  # Secondary > 50% of supply = high
-    buy_boost_critical: float = 0.30  # Add 30% to buy_prob when critical
-    buy_boost_low: float = 0.15  # Add 15% to buy_prob when low
-    buy_reduce_high: float = 0.15  # Reduce 15% from buy_prob when high
+    buy_boost_critical: float = 0.30  # Subtract 30% from buy_prob when critical (more sells)
+    buy_boost_low: float = 0.15  # Subtract 15% from buy_prob when low (more sells)
+    buy_reduce_high: float = 0.15  # Add 15% to buy_prob when high (more buys)
     max_buy_probability: float = 0.80  # Cap at 80% buy
     min_buy_probability: float = 0.35  # Floor at 35% buy
 
@@ -92,6 +93,10 @@ class TradingEngine:
         Determine if next action should be buy or sell
         Uses configured buy_probability in PRIMARY market
         DYNAMICALLY ADJUSTED based on secondary market health in SECONDARY market (if enabled)
+
+        LOGIC: Keep secondary market with healthy supply
+        - Secondary LOW → MORE SELLS (reduce buy_prob) → Refill secondary market
+        - Secondary HIGH → MORE BUYS (increase buy_prob) → Reduce secondary excess
         """
         # Base buy probability from config
         buy_prob = self.config.buy_probability
@@ -108,14 +113,14 @@ class TradingEngine:
 
             # Apply adjustments based on configurable thresholds
             if secondary_ratio < self.config.secondary_critical_ratio:
-                # Critical: boost buy probability
-                buy_prob = min(self.config.max_buy_probability, buy_prob + self.config.buy_boost_critical)
+                # Critical LOW: REDUCE buy probability → MORE SELLS → Refill secondary
+                buy_prob = max(self.config.min_buy_probability, buy_prob - self.config.buy_boost_critical)
             elif secondary_ratio < self.config.secondary_low_ratio:
-                # Low: moderate boost
-                buy_prob = min(self.config.max_buy_probability, buy_prob + self.config.buy_boost_low)
+                # Low: moderate reduction → Encourage sells to refill
+                buy_prob = max(self.config.min_buy_probability, buy_prob - self.config.buy_boost_low)
             elif secondary_ratio > self.config.secondary_high_ratio:
-                # High: reduce buy probability (encourage sells)
-                buy_prob = max(self.config.min_buy_probability, buy_prob - self.config.buy_reduce_high)
+                # High: INCREASE buy probability → MORE BUYS → Reduce secondary excess
+                buy_prob = min(self.config.max_buy_probability, buy_prob + self.config.buy_reduce_high)
 
         return random.random() < buy_prob
     
