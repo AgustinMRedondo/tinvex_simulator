@@ -6,6 +6,9 @@
     <title>Tinvex AMM Simulator - Auto Trading</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
 </head>
 <body class="bg-gray-900 text-gray-100">
     <div class="container mx-auto p-8 max-w-7xl">
@@ -96,7 +99,7 @@
         </div>
         
         <!-- Market Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div class="text-gray-400 text-sm mb-1">Current Price</div>
                 <div id="currentPrice" class="text-3xl font-bold text-green-400">€0.00</div>
@@ -110,14 +113,18 @@
                 <div id="totalTrades" class="text-3xl font-bold text-purple-400">0</div>
             </div>
             <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Fees Generated</div>
+                <div id="feesGenerated" class="text-3xl font-bold text-orange-400">€0.00</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div class="text-gray-400 text-sm mb-1">Price Change</div>
                 <div id="priceChange" class="text-3xl font-bold text-yellow-400">0%</div>
             </div>
         </div>
-        
-        <!-- Price Chart -->
+
+        <!-- Price Chart (Candlestick) -->
         <div class="bg-gray-800 rounded-lg shadow-xl p-6 mb-6 border border-gray-700">
-            <h2 class="text-2xl font-semibold mb-4 text-green-400">📈 Price History</h2>
+            <h2 class="text-2xl font-semibold mb-4 text-green-400">📊 Price Chart (1-Minute Candles)</h2>
             <canvas id="priceChart" height="100"></canvas>
         </div>
 
@@ -201,37 +208,67 @@
         let updateInterval = null;
         let priceChart = null;
 
-        // Initialize Chart
+        // Initialize Candlestick Chart
         const ctx = document.getElementById('priceChart').getContext('2d');
         priceChart = new Chart(ctx, {
-            type: 'line',
+            type: 'candlestick',
             data: {
-                labels: [],
                 datasets: [{
                     label: 'Price (EUR)',
                     data: [],
-                    borderColor: 'rgb(34, 197, 94)',
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    tension: 0.4,
-                    fill: true
+                    borderColor: {
+                        up: '#22c55e',    // green for bullish candles
+                        down: '#ef4444',  // red for bearish candles
+                        unchanged: '#6b7280'
+                    },
+                    backgroundColor: {
+                        up: 'rgba(34, 197, 94, 0.3)',
+                        down: 'rgba(239, 68, 68, 0.3)',
+                        unchanged: 'rgba(107, 114, 128, 0.3)'
+                    }
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { 
+                    legend: {
                         display: true,
                         labels: { color: '#9CA3AF' }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const point = context.raw;
+                                return [
+                                    `Open: €${point.o.toFixed(4)}`,
+                                    `High: €${point.h.toFixed(4)}`,
+                                    `Low: €${point.l.toFixed(4)}`,
+                                    `Close: €${point.c.toFixed(4)}`
+                                ];
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: false,
-                        ticks: { color: '#9CA3AF' },
+                        ticks: {
+                            color: '#9CA3AF',
+                            callback: function(value) {
+                                return '€' + value.toFixed(4);
+                            }
+                        },
                         grid: { color: '#374151' }
                     },
                     x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute',
+                            displayFormats: {
+                                minute: 'HH:mm'
+                            }
+                        },
                         ticks: { color: '#9CA3AF' },
                         grid: { color: '#374151' }
                     }
@@ -386,6 +423,7 @@
                 document.getElementById('currentPrice').textContent = '€0.00';
                 document.getElementById('liquidity').textContent = '€0';
                 document.getElementById('totalTrades').textContent = '0';
+                document.getElementById('feesGenerated').textContent = '€0.00';
                 document.getElementById('priceChange').textContent = '0.00%';
                 document.getElementById('priceChange').className = 'text-3xl font-bold text-gray-400';
 
@@ -427,38 +465,48 @@
                 const stats = statusData.stats;
                 
                 // Update stats
-                document.getElementById('currentPrice').textContent = 
+                document.getElementById('currentPrice').textContent =
                     `€${state.current_price.toFixed(4)}`;
-                document.getElementById('liquidity').textContent = 
+                document.getElementById('liquidity').textContent =
                     `€${state.current_liquidity.toFixed(0)}`;
-                document.getElementById('totalTrades').textContent = 
+                document.getElementById('totalTrades').textContent =
                     statusData.trade_count;
-                
+
+                // Update fees generated (NEW)
+                if (stats.total_fees_generated !== undefined) {
+                    document.getElementById('feesGenerated').textContent =
+                        `€${stats.total_fees_generated.toFixed(2)}`;
+                }
+
                 if (stats.price_change_percent !== undefined) {
                     const change = stats.price_change_percent;
                     const changeColor = change >= 0 ? 'text-green-400' : 'text-red-400';
                     document.getElementById('priceChange').className = `text-3xl font-bold ${changeColor}`;
-                    document.getElementById('priceChange').textContent = 
+                    document.getElementById('priceChange').textContent =
                         `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
                 }
-                
-                // Update market state
-                document.getElementById('circulation').textContent = 
-                    state.tokens_in_circulation.toFixed(0);
-                document.getElementById('primaryAvailable').textContent = 
-                    state.tokens_available_primary.toFixed(0);
-                document.getElementById('secondaryAvailable').textContent = 
-                    state.tokens_available_secondary.toFixed(0);
-                document.getElementById('totalSupplyDisplay').textContent = 
-                    state.total_supply;
-                
-                // Update chart
-                if (stats.price_history && stats.price_history.length > 0) {
-                    const labels = stats.price_history.map((_, i) => i + 1);
-                    const prices = stats.price_history.map(p => p.price);
 
-                    priceChart.data.labels = labels;
-                    priceChart.data.datasets[0].data = prices;
+                // Update market state
+                document.getElementById('circulation').textContent =
+                    state.tokens_in_circulation.toFixed(0);
+                document.getElementById('primaryAvailable').textContent =
+                    state.tokens_available_primary.toFixed(0);
+                document.getElementById('secondaryAvailable').textContent =
+                    state.tokens_available_secondary.toFixed(0);
+                document.getElementById('totalSupplyDisplay').textContent =
+                    state.total_supply;
+
+                // Update candlestick chart
+                if (stats.candlestick_data && stats.candlestick_data.length > 0) {
+                    const candlestickData = stats.candlestick_data.map(candle => ({
+                        x: candle.time * 1000, // Convert to milliseconds for Chart.js
+                        o: candle.open,
+                        h: candle.high,
+                        l: candle.low,
+                        c: candle.close
+                    }));
+
+                    priceChart.data.datasets[0].data = candlestickData;
                     priceChart.update('none'); // No animation for live updates
                 }
 

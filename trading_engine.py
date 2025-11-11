@@ -18,6 +18,7 @@ class TradeConfig:
     panic_sell_probability: float = 0.05  # 5% chance of selling 100% of holdings
     min_tokens: int = 1
     max_tokens: int = 10000
+    max_consecutive_failures: int = 20  # Stop after this many consecutive failed trades
 
 
 class TradingEngine:
@@ -28,17 +29,18 @@ class TradingEngine:
     def __init__(self, simulation_engine, config: Optional[TradeConfig] = None):
         """
         Initialize trading engine
-        
+
         Args:
             simulation_engine: Instance of SimulationEngine
             config: Trading configuration
         """
         self.engine = simulation_engine
         self.config = config or TradeConfig()
-        
+
         self.is_running = False
         self.trade_count = 0
         self.price_history: List[Dict] = []
+        self.total_fees_generated = 0.0  # Track fees (1% on buys + 1% on sells)
     
     def get_random_user(self) -> Optional[int]:
         """Get a random user ID (excluding LP)"""
@@ -117,11 +119,19 @@ class TradingEngine:
 
                 if result.get("success"):
                     self.trade_count += 1
+
+                    # Calculate fees: 1% of purchase value (does NOT affect AMM price/formulas)
+                    last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
+                    amount_eur = last_tx.get("amount_eur", 0)
+                    fee = amount_eur * 0.01
+                    self.total_fees_generated += fee
+
                     self.price_history.append({
                         "trade_number": self.trade_count,
                         "price": self.engine.current_price,
                         "timestamp": time.time(),
-                        "action": "buy_primary"
+                        "action": "buy_primary",
+                        "fee": fee
                     })
                     return {
                         "success": True,
@@ -130,7 +140,8 @@ class TradingEngine:
                         "action": "buy_primary",
                         "amount": amount,
                         "price": self.engine.current_price,
-                        "timestamp": time.time()
+                        "timestamp": time.time(),
+                        "fee": fee
                     }
                 return {"success": False, "reason": result.get("message")}
 
@@ -146,11 +157,19 @@ class TradingEngine:
 
                 if result.get("success"):
                     self.trade_count += 1
+
+                    # Calculate fees: 1% of purchase value (does NOT affect AMM price/formulas)
+                    last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
+                    amount_eur = last_tx.get("amount_eur", 0)
+                    fee = amount_eur * 0.01
+                    self.total_fees_generated += fee
+
                     self.price_history.append({
                         "trade_number": self.trade_count,
                         "price": self.engine.current_price,
                         "timestamp": time.time(),
-                        "action": "buy_secondary"
+                        "action": "buy_secondary",
+                        "fee": fee
                     })
                     return {
                         "success": True,
@@ -159,7 +178,8 @@ class TradingEngine:
                         "action": "buy_secondary",
                         "amount": amount,
                         "price": self.engine.current_price,
-                        "timestamp": time.time()
+                        "timestamp": time.time(),
+                        "fee": fee
                     }
                 return {"success": False, "reason": result.get("message")}
 
@@ -175,11 +195,19 @@ class TradingEngine:
 
             if result.get("success"):
                 self.trade_count += 1
+
+                # Calculate fees: 1% of sell payout (does NOT affect AMM price/formulas)
+                last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
+                payout_eur = last_tx.get("payout_eur", 0)
+                fee = payout_eur * 0.01
+                self.total_fees_generated += fee
+
                 self.price_history.append({
                     "trade_number": self.trade_count,
                     "price": self.engine.current_price,
                     "timestamp": time.time(),
-                    "action": "sell"
+                    "action": "sell",
+                    "fee": fee
                 })
                 return {
                     "success": True,
@@ -188,7 +216,8 @@ class TradingEngine:
                     "action": "sell",
                     "amount": amount,
                     "price": self.engine.current_price,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
+                    "fee": fee
                 }
             return {"success": False, "reason": result.get("message")}
     
@@ -199,19 +228,29 @@ class TradingEngine:
         print("\n🚀 Starting continuous trading simulation...")
         print(f"   Transaction interval: {self.config.transaction_interval_seconds}s")
         print(f"   Buy probability: {self.config.buy_probability * 100}%")
-        
+
         self.is_running = True
-        
+        consecutive_failures = 0
+
         while self.is_running:
             # Execute single trade
             result = self.execute_single_trade()
-            
+
             # Log if successful
             if result.get("success"):
+                consecutive_failures = 0  # Reset failure counter
                 action_emoji = "📈" if "buy" in result["action"] else "📉"
+                fee_display = f" | Fee: €{result.get('fee', 0):.2f}" if result.get('fee') else ""
                 print(f"{action_emoji} Trade #{self.trade_count}: {result['action']} | "
-                      f"Amount: {result['amount']:.0f} | Price: €{result['price']:.4f}")
-            
+                      f"Amount: {result['amount']:.0f} | Price: €{result['price']:.4f}{fee_display}")
+            else:
+                consecutive_failures += 1
+                if consecutive_failures >= self.config.max_consecutive_failures:
+                    print(f"\n⚠️  {consecutive_failures} consecutive trade failures - stopping to prevent infinite loop")
+                    print(f"   Last failure reason: {result.get('reason', 'unknown')}")
+                    self.is_running = False
+                    break
+
             # Wait before next transaction
             await asyncio.sleep(self.config.transaction_interval_seconds)
     
@@ -220,6 +259,67 @@ class TradingEngine:
         self.is_running = False
         print(f"\n⏹️  Trading stopped - Total trades: {self.trade_count}")
     
+    def get_candlestick_data(self, interval_seconds: int = 60) -> List[Dict]:
+        """
+        Generate candlestick (OHLC) data from price history
+
+        Args:
+            interval_seconds: Time interval for each candle (default 60 = 1 minute)
+
+        Returns:
+            List of candlestick data [{time, open, high, low, close}, ...]
+        """
+        if not self.price_history:
+            return []
+
+        candles = []
+        current_candle = None
+        candle_start_time = None
+
+        for trade in self.price_history:
+            trade_time = trade["timestamp"]
+            price = trade["price"]
+
+            # Determine which candle this trade belongs to
+            if candle_start_time is None:
+                candle_start_time = trade_time
+
+            # Check if we need to start a new candle
+            if trade_time >= candle_start_time + interval_seconds:
+                # Close current candle
+                if current_candle:
+                    candles.append(current_candle)
+
+                # Start new candle
+                candle_start_time = trade_time
+                current_candle = {
+                    "time": candle_start_time,
+                    "open": price,
+                    "high": price,
+                    "low": price,
+                    "close": price
+                }
+            else:
+                # Update current candle
+                if current_candle is None:
+                    current_candle = {
+                        "time": candle_start_time,
+                        "open": price,
+                        "high": price,
+                        "low": price,
+                        "close": price
+                    }
+                else:
+                    current_candle["high"] = max(current_candle["high"], price)
+                    current_candle["low"] = min(current_candle["low"], price)
+                    current_candle["close"] = price
+
+        # Add last candle
+        if current_candle:
+            candles.append(current_candle)
+
+        return candles
+
     def get_stats(self) -> Dict:
         """Get trading statistics"""
         if not self.price_history:
@@ -227,13 +327,14 @@ class TradingEngine:
                 "total_trades": 0,
                 "price_change": 0,
                 "price_min": 0,
-                "price_max": 0
+                "price_max": 0,
+                "total_fees_generated": 0.0
             }
-        
+
         prices = [p["price"] for p in self.price_history]
         initial_price = prices[0]
         final_price = prices[-1]
-        
+
         return {
             "total_trades": self.trade_count,
             "initial_price": initial_price,
@@ -241,5 +342,7 @@ class TradingEngine:
             "price_change_percent": ((final_price - initial_price) / initial_price * 100) if initial_price > 0 else 0,
             "price_min": min(prices),
             "price_max": max(prices),
-            "price_history": self.price_history[-100:]  # Last 100 for chart
+            "price_history": self.price_history[-100:],  # Last 100 for chart
+            "candlestick_data": self.get_candlestick_data(60),  # 1 minute candles
+            "total_fees_generated": self.total_fees_generated
         }
