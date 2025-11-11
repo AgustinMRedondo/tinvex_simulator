@@ -1,19 +1,22 @@
 #LAS FUNCIONES ORIGINALES EXPLICADAS QUE TIENEN QUE SEGUIRSE SIN FALLO.
-initial_price = 1 #EL PRECIO DE SALIDA SIEMPRE ES IGUAL QUE 1
-total_supply = 1000 #TAMAÑO TOTAL DE LA EMISION
-transaction_history = [] #LISTA HISTORIAL DE TODOS LOS MOVIMIENTOS
-user_balance = {} #DICCIONARIO DE ESTADO DEL BALANCE DE CADA USUARIO
-min_tokens=5 #TOKENS MINIMOS Y MAXIMOS PARA RANDOMIZAR
-max_tokens=30
-max_slippage=5/100 #EL SLIPPAGE MAXIMO PARA PRECIO
-first_purchase_liquidity = int(input("% of total supply bought at t0"))/100*total_supply # %DEL TOTAL DE TOKENS QUE COMPRA EN LA PRIMERA LIQUIDEZ
-tokens_in_circulation = 0 #TOKENS QUE HAY EN CIRCULACION
-tokens_available_primary = total_supply #TOKENS QUE HAY EN EL MERCADO PRIMARIO
-tokens_available_secondary = 0 #TOKENS QUE HAN SIDO COMPRADOS Y VENDIDOS Y ESTÁN DISPONIBLES EN EL SECUNDARIO
-current_liquidity = 0 #LIQUIDEZ ACTUALIZADA EN CADA TRANSACCIÓN
-current_price = 0 #PRECIO ACTUALIZADO EN CADA TRANSACCIÓN
-total_minted = 0  #TOTAL MINTEADOS
-users_list = [] #LISTA DE USUARIOS
+# NOTA: SIN HARDCODING - Todos los valores deben pasarse como parámetros
+
+# Variables globales de estado (se inicializan en runtime, NO hardcodeadas)
+initial_price = None  # EL PRECIO DE SALIDA SIEMPRE ES IGUAL QUE 1
+total_supply = None  # TAMAÑO TOTAL DE LA EMISION
+transaction_history = []  # LISTA HISTORIAL DE TODOS LOS MOVIMIENTOS
+user_balance = {}  # DICCIONARIO DE ESTADO DEL BALANCE DE CADA USUARIO
+min_tokens = None  # TOKENS MINIMOS PARA RANDOMIZAR
+max_tokens = None  # TOKENS MAXIMOS PARA RANDOMIZAR
+max_slippage = None  # EL SLIPPAGE MAXIMO PARA PRECIO
+first_purchase_liquidity = None  # %DEL TOTAL DE TOKENS QUE COMPRA EN LA PRIMERA LIQUIDEZ
+tokens_in_circulation = 0  # TOKENS QUE HAY EN CIRCULACION
+tokens_available_primary = None  # TOKENS QUE HAY EN EL MERCADO PRIMARIO (= total_supply al inicio)
+tokens_available_secondary = 0  # TOKENS QUE HAN SIDO COMPRADOS Y VENDIDOS Y ESTÁN DISPONIBLES EN EL SECUNDARIO
+current_liquidity = 0  # LIQUIDEZ ACTUALIZADA EN CADA TRANSACCIÓN
+current_price = None  # PRECIO ACTUALIZADO EN CADA TRANSACCIÓN
+total_minted = 0  # TOTAL MINTEADOS
+users_list = []  # LISTA DE USUARIOS
 
 
 #PASO 1. COMIENZA CON LA LIQUIDEZ INICIAL. ESTA ES UNA COMPRA INICIAL QUE HACE EL EMISOR, PONE EL CAPITAL Y RECIBE EL LOS TOKENS INICIALES, ESTOS TOKENS SE LOS DA A LOS U
