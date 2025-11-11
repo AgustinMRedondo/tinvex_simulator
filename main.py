@@ -329,13 +329,25 @@ async def setup_auto_trading(request: AutoTradingSetupRequest):
         if not distribution_result.get("success"):
             return {"success": False, "message": f"Failed to distribute tokens: {distribution_result.get('message')}"}
 
-    # Step 4: Setup trading engine with custom probabilities, initial fees and volume
+    # Step 4: Setup trading engine with ALL configurable parameters
     config = TradeConfig(
         transaction_interval_seconds=request.transaction_interval_seconds,
-        buy_probability=request.buy_probability_percentage / 100.0,  # Convert % to decimal
-        panic_sell_probability=request.panic_sell_probability_percentage / 100.0  # Convert % to decimal
+        buy_probability=request.buy_probability_percentage / 100.0,
+        panic_sell_probability=request.panic_sell_probability_percentage / 100.0,
+        initial_dump_probability=request.initial_dump_probability_percentage / 100.0,
+        max_buy_tokens=request.max_buy_tokens,
+        max_sell_tokens=request.max_sell_tokens,
+        min_sell_percentage=request.min_sell_percentage / 100.0,
+        max_sell_percentage=request.max_sell_percentage / 100.0,
+        large_holder_min_sell_pct=request.large_holder_min_sell_pct / 100.0,
+        large_holder_max_sell_pct=request.large_holder_max_sell_pct / 100.0
     )
     trading_engine = TradingEngine(engine, config, initial_fees=initial_fee, initial_volume=initial_volume)
+
+    # Step 5: CRITICAL - Execute initial dumps (40-50% of users dump 100%)
+    dump_result = trading_engine.execute_initial_dumps()
+    if not dump_result.get("success"):
+        print(f"⚠️ Warning: Initial dumps failed - {dump_result.get('message')}")
 
     return {
         "success": True,
@@ -347,12 +359,16 @@ async def setup_auto_trading(request: AutoTradingSetupRequest):
             "max_slippage_percentage": request.max_slippage_percentage,
             "buy_probability_percentage": request.buy_probability_percentage,
             "panic_sell_probability_percentage": request.panic_sell_probability_percentage,
+            "initial_dump_probability_percentage": request.initial_dump_probability_percentage,
+            "max_buy_tokens": request.max_buy_tokens,
+            "max_sell_tokens": request.max_sell_tokens,
             "transaction_interval_seconds": request.transaction_interval_seconds
         },
         "distribution": {
             "tokens_distributed": lp_balance if distribution_result else 0,
             "users_received": len(distribution_result.get("allocations", [])) if distribution_result else 0
         },
+        "initial_dumps": dump_result if dump_result.get("success") else {},
         "initial_state": engine.current_info()
     }
 

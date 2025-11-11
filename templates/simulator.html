@@ -46,21 +46,72 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Buy Probability (%)</label>
                     <input type="number" id="buyProbability" value="55" step="1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
-                    <p class="text-xs text-gray-400 mt-1">Chance of buy vs sell (remaining % is sell)</p>
+                    <p class="text-xs text-gray-400 mt-1">Chance of buy vs sell</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Panic Sell Probability (%)</label>
                     <input type="number" id="panicSellProbability" value="5" step="0.1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
-                    <p class="text-xs text-gray-400 mt-1">Chance of selling 100% of holdings</p>
+                    <p class="text-xs text-gray-400 mt-1">Chance of 100% sell during trading</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">🔥 Initial Dump (%)</label>
+                    <input type="number" id="initialDumpProbability" value="45" step="1" min="0" max="100"
+                           class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
+                    <p class="text-xs text-gray-400 mt-1">% of users who dump 100% at start</p>
                 </div>
             </div>
-            
+
+            <!-- Advanced Volume Configuration -->
+            <div class="bg-gray-700 border border-gray-600 rounded p-4 mb-4">
+                <h3 class="text-lg font-semibold mb-3 text-cyan-400">⚙️ Volume Configuration</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Buy Tokens</label>
+                        <input type="number" id="maxBuyTokens" value="3000" step="100"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Max tokens per buy</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Sell Tokens</label>
+                        <input type="number" id="maxSellTokens" value="50000" step="1000"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Max tokens per sell</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Min Sell % (Small)</label>
+                        <input type="number" id="minSellPercentage" value="60" step="5" min="0" max="100"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Min % sold (small holders)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Sell % (Small)</label>
+                        <input type="number" id="maxSellPercentage" value="100" step="5" min="0" max="100"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Max % sold (small holders)</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Min Sell % (Large)</label>
+                        <input type="number" id="largeHolderMinSellPct" value="70" step="5" min="0" max="100"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Min % sold (large holders)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Sell % (Large)</label>
+                        <input type="number" id="largeHolderMaxSellPct" value="100" step="5" min="0" max="100"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Max % sold (large holders)</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-4">
                 <label class="block text-sm font-medium mb-2 text-gray-300">Transaction Interval (seconds)</label>
                 <input type="number" id="txInterval" value="0.5" step="0.1"
@@ -302,6 +353,13 @@
             const maxSlippage = document.getElementById('maxSlippage').value;
             const buyProbability = document.getElementById('buyProbability').value;
             const panicSellProbability = document.getElementById('panicSellProbability').value;
+            const initialDumpProbability = document.getElementById('initialDumpProbability').value;
+            const maxBuyTokens = document.getElementById('maxBuyTokens').value;
+            const maxSellTokens = document.getElementById('maxSellTokens').value;
+            const minSellPercentage = document.getElementById('minSellPercentage').value;
+            const maxSellPercentage = document.getElementById('maxSellPercentage').value;
+            const largeHolderMinSellPct = document.getElementById('largeHolderMinSellPct').value;
+            const largeHolderMaxSellPct = document.getElementById('largeHolderMaxSellPct').value;
             const txInterval = document.getElementById('txInterval').value;
 
             const config = {
@@ -311,6 +369,13 @@
                 max_slippage_percentage: parseFloat(maxSlippage),
                 buy_probability_percentage: parseFloat(buyProbability),
                 panic_sell_probability_percentage: parseFloat(panicSellProbability),
+                initial_dump_probability_percentage: parseFloat(initialDumpProbability),
+                max_buy_tokens: parseInt(maxBuyTokens),
+                max_sell_tokens: parseInt(maxSellTokens),
+                min_sell_percentage: parseFloat(minSellPercentage),
+                max_sell_percentage: parseFloat(maxSellPercentage),
+                large_holder_min_sell_pct: parseFloat(largeHolderMinSellPct),
+                large_holder_max_sell_pct: parseFloat(largeHolderMaxSellPct),
                 transaction_interval_seconds: parseFloat(txInterval)
             };
 
@@ -349,6 +414,15 @@
                         console.log(`   Users received: ${data.distribution.users_received}`);
                     } else {
                         console.warn('⚠️ No distribution data returned!');
+                    }
+
+                    // Show initial dumps info
+                    if (data.initial_dumps && data.initial_dumps.success) {
+                        console.log(`\n💥 Initial Dumps Executed:`);
+                        console.log(`   Users dumped: ${data.initial_dumps.dumps_executed}/${data.initial_dumps.total_users} (${data.initial_dumps.dump_percentage.toFixed(1)}%)`);
+                        console.log(`   Tokens dumped: ${data.initial_dumps.total_tokens_dumped.toLocaleString()}`);
+                        console.log(`   EUR from dumps: €${data.initial_dumps.total_eur_from_dumps.toLocaleString()}`);
+                        console.log(`   Secondary market: ${data.initial_dumps.secondary_market_after.toLocaleString()} tokens`);
                     }
 
                     const sellProbability = 100 - config.buy_probability_percentage;
