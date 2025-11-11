@@ -12,61 +12,60 @@ from dataclasses import dataclass
 
 @dataclass
 class TradeConfig:
-    """Configuration for trading simulation - ALL parameters configurable"""
-    transaction_interval_seconds: float = 0.5  # Time between transactions
-    buy_probability: float = 0.55  # Base: 55% buy, 45% sell - FAN TOKENS: people want to buy & hold
-    panic_sell_probability: float = 0.02  # 2% chance
+    """
+    Configuration for trading simulation - NO defaults, ALL values must be provided
+    This ensures complete flexibility with ZERO hardcoded behavior
+    """
+    # Basic trading parameters
+    transaction_interval_seconds: float
+    buy_probability: float
+    panic_sell_probability: float
 
-    # Buy volumes
-    min_buy_tokens: int = 1
-    max_buy_tokens: int = 10000
-
-    # Sell volumes
-    min_sell_tokens: int = 1
-    max_sell_tokens: int = 30000
+    # Buy/sell volumes
+    min_buy_tokens: int
+    max_buy_tokens: int
+    min_sell_tokens: int
+    max_sell_tokens: int
 
     # Sell percentage ranges
-    min_sell_percentage: float = 0.20  # Small holders sell 20-50%
-    max_sell_percentage: float = 0.50
+    min_sell_percentage: float
+    max_sell_percentage: float
 
-    # Large holder threshold
-    large_holder_threshold: int = 1000
-
-    # Large holder sell percentages
-    large_holder_min_sell_pct: float = 0.30  # Large holders sell 30-60%
-    large_holder_max_sell_pct: float = 0.60
+    # Large holder configuration
+    large_holder_threshold: int
+    large_holder_min_sell_pct: float
+    large_holder_max_sell_pct: float
 
     # Initial dump configuration
-    initial_dump_probability: float = 0.15
+    initial_dump_probability: float
 
-    max_consecutive_failures: int = 50
+    # Failure handling
+    max_consecutive_failures: int
 
-    # FEE CONFIGURATION - NOT hardcoded
-    fee_percentage: float = 0.01  # 1% fee on all transactions
+    # Fee configuration
+    fee_percentage: float
 
-    # LOGGING CONFIGURATION
-    max_dump_logs: int = 10  # Max number of dump logs to show
+    # Logging
+    max_dump_logs: int
 
-    # DYNAMIC BUY ADJUSTMENT - REALISTIC for fan token market
-    # When secondary LOW: MORE SELLS to refill (buy_prob goes BELOW 50%)
-    # When secondary HIGH: MORE BUYS to reduce (buy_prob goes above 60%)
-    dynamic_adjustment_enabled: bool = True
-    secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = CRITICAL
-    secondary_low_ratio: float = 0.05  # Secondary < 5% of supply = LOW
-    secondary_high_ratio: float = 0.30  # Secondary > 30% of supply = HIGH
-    buy_boost_critical: float = 0.25  # Reduce buy by 25% when critical → 55% - 25% = 30% buy (MORE SELLS)
-    buy_boost_low: float = 0.10  # Reduce buy by 10% when low → 55% - 10% = 45% buy (more sells)
-    buy_reduce_high: float = 0.15  # Increase buy by 15% when high → 55% + 15% = 70% buy (more buys)
-    max_buy_probability: float = 0.75  # Cap at 75% buy
-    min_buy_probability: float = 0.25  # Floor at 25% buy (allows 75% sells when needed)
+    # Dynamic buy adjustment for secondary market health
+    dynamic_adjustment_enabled: bool
+    secondary_critical_ratio: float
+    secondary_low_ratio: float
+    secondary_high_ratio: float
+    buy_boost_critical: float
+    buy_boost_low: float
+    buy_reduce_high: float
+    max_buy_probability: float
+    min_buy_probability: float
 
-    # SECONDARY MARKET PROTECTION
-    min_secondary_tokens: int = 10  # Don't allow buy if secondary < this
-    max_buyable_ratio: float = 0.90  # Max 90% of secondary can be bought at once
+    # Secondary market protection
+    min_secondary_tokens: int
+    max_buyable_ratio: float
 
-    # CHART CONFIGURATION
-    candlestick_interval_seconds: int = 60  # 1 minute candles
-    max_price_history: int = 100  # Last N points for chart
+    # Chart configuration
+    candlestick_interval_seconds: int
+    max_price_history: int
 
 
 class TradingEngine:
