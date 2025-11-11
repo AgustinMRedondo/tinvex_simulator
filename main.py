@@ -504,9 +504,11 @@ async def get_top_traders(limit: int = 10):
 
 
 if __name__ == "__main__":
+    # reload=True is useful for development but can cause issues with long simulations
+    # Set reload=False for stable production runs, or True for active development
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=False  # Changed to False for stability with large simulations
     )

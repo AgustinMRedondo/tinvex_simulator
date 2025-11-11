@@ -165,8 +165,12 @@ class TradingEngine:
         # LIMIT to prevent blocking with huge user counts
         target_dumps = min(target_dumps, self.config.max_initial_dumps)
 
-        print(f"\n💥 Executing initial dumps ({self.config.initial_dump_probability * 100:.1f}% of users, max {self.config.max_initial_dumps})...")
-        print(f"   Target dumps: {target_dumps} out of {len(eligible_users)} users")
+        # Calculate actual percentage after applying limit
+        actual_percentage = (target_dumps / len(eligible_users) * 100) if eligible_users else 0
+
+        print(f"\n💥 Executing initial dumps...")
+        print(f"   Target: {target_dumps:,} users ({actual_percentage:.3f}% of {len(eligible_users):,} total)")
+        print(f"   Config: {self.config.initial_dump_probability * 100:.0f}% probability, capped at {self.config.max_initial_dumps:,} max")
 
         # Randomly select users to dump
         users_to_dump = random.sample(eligible_users, min(target_dumps, len(eligible_users)))
