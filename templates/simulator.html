@@ -112,13 +112,139 @@
                 </div>
             </div>
 
+            <!-- Advanced Configuration (Configurable, no hardcoding) -->
+            <div class="bg-gray-700 border border-gray-600 rounded p-4 mb-4">
+                <h3 class="text-lg font-semibold mb-3 text-orange-400">🎛️ Advanced Configuration</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Min Buy Tokens</label>
+                        <input type="number" id="minBuyTokens" value="1" step="1"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Min Sell Tokens</label>
+                        <input type="number" id="minSellTokens" value="1" step="1"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Large Holder Threshold</label>
+                        <input type="number" id="largeHolderThreshold" value="1000" step="100"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Tokens to be "large"</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Fee %</label>
+                        <input type="number" id="feePercentage" value="1" step="0.1"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Transaction fee %</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Failures</label>
+                        <input type="number" id="maxConsecutiveFailures" value="50" step="10"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Dump Logs</label>
+                        <input type="number" id="maxDumpLogs" value="10" step="5"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Min Secondary Tokens</label>
+                        <input type="number" id="minSecondaryTokens" value="10" step="5"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-orange-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Adjustment Configuration -->
+            <div class="bg-gray-700 border border-gray-600 rounded p-4 mb-4">
+                <h3 class="text-lg font-semibold mb-3 text-yellow-400">🔄 Dynamic Buy/Sell Adjustments</h3>
+                <div class="mb-3">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="dynamicAdjustmentEnabled" checked
+                               class="w-5 h-5 text-yellow-600 bg-gray-700 border-gray-600 rounded focus:ring-yellow-500">
+                        <span class="ml-2 text-gray-300">Enable Dynamic Adjustments</span>
+                    </label>
+                    <p class="text-xs text-gray-400 mt-1">Auto-adjust buy/sell based on secondary market health</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Critical Ratio</label>
+                        <input type="number" id="secondaryCriticalRatio" value="0.01" step="0.01"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">< 1% = critical</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Low Ratio</label>
+                        <input type="number" id="secondaryLowRatio" value="0.05" step="0.01"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">< 5% = low</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">High Ratio</label>
+                        <input type="number" id="secondaryHighRatio" value="0.30" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">> 30% = high</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Buy Reduce Critical</label>
+                        <input type="number" id="buyBoostCritical" value="0.25" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Buy Reduce Low</label>
+                        <input type="number" id="buyBoostLow" value="0.10" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Buy Increase High</label>
+                        <input type="number" id="buyReduceHigh" value="0.15" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Buy Prob</label>
+                        <input type="number" id="maxBuyProbability" value="0.75" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Min Buy Prob</label>
+                        <input type="number" id="minBuyProbability" value="0.25" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Buyable Ratio</label>
+                        <input type="number" id="maxBuyableRatio" value="0.90" step="0.05"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                        <p class="text-xs text-gray-400 mt-1">Max % of secondary per tx</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Candlestick Interval (s)</label>
+                        <input type="number" id="candlestickInterval" value="60" step="10"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Max Price History</label>
+                        <input type="number" id="maxPriceHistory" value="100" step="10"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-yellow-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-4">
                 <label class="block text-sm font-medium mb-2 text-gray-300">Transaction Interval (seconds)</label>
                 <input type="number" id="txInterval" value="0.5" step="0.1"
                        class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
                 <p class="text-xs text-gray-400 mt-1">Time between each transaction (0.5s = 2 trades/second)</p>
             </div>
-            
+
             <button onclick="setupTrading()" id="setupBtn"
                     class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
                 🚀 Setup Auto-Trading
@@ -380,6 +506,29 @@
             const largeHolderMaxSellPct = document.getElementById('largeHolderMaxSellPct').value;
             const txInterval = document.getElementById('txInterval').value;
 
+            // Advanced configuration (ALL configurable, NO hardcoding!)
+            const minBuyTokens = document.getElementById('minBuyTokens').value;
+            const minSellTokens = document.getElementById('minSellTokens').value;
+            const largeHolderThreshold = document.getElementById('largeHolderThreshold').value;
+            const feePercentage = document.getElementById('feePercentage').value;
+            const maxConsecutiveFailures = document.getElementById('maxConsecutiveFailures').value;
+            const maxDumpLogs = document.getElementById('maxDumpLogs').value;
+            const minSecondaryTokens = document.getElementById('minSecondaryTokens').value;
+
+            // Dynamic adjustments
+            const dynamicAdjustmentEnabled = document.getElementById('dynamicAdjustmentEnabled').checked;
+            const secondaryCriticalRatio = document.getElementById('secondaryCriticalRatio').value;
+            const secondaryLowRatio = document.getElementById('secondaryLowRatio').value;
+            const secondaryHighRatio = document.getElementById('secondaryHighRatio').value;
+            const buyBoostCritical = document.getElementById('buyBoostCritical').value;
+            const buyBoostLow = document.getElementById('buyBoostLow').value;
+            const buyReduceHigh = document.getElementById('buyReduceHigh').value;
+            const maxBuyProbability = document.getElementById('maxBuyProbability').value;
+            const minBuyProbability = document.getElementById('minBuyProbability').value;
+            const maxBuyableRatio = document.getElementById('maxBuyableRatio').value;
+            const candlestickInterval = document.getElementById('candlestickInterval').value;
+            const maxPriceHistory = document.getElementById('maxPriceHistory').value;
+
             const config = {
                 total_supply: parseInt(totalSupply),
                 num_users: parseInt(numUsers),
@@ -388,12 +537,44 @@
                 buy_probability_percentage: parseFloat(buyProbability),
                 panic_sell_probability_percentage: parseFloat(panicSellProbability),
                 initial_dump_probability_percentage: parseFloat(initialDumpProbability),
+
+                // Volume controls
+                min_buy_tokens: parseInt(minBuyTokens),
                 max_buy_tokens: parseInt(maxBuyTokens),
+                min_sell_tokens: parseInt(minSellTokens),
                 max_sell_tokens: parseInt(maxSellTokens),
+
+                // Sell percentages
                 min_sell_percentage: parseFloat(minSellPercentage),
                 max_sell_percentage: parseFloat(maxSellPercentage),
+                large_holder_threshold: parseInt(largeHolderThreshold),
                 large_holder_min_sell_pct: parseFloat(largeHolderMinSellPct),
                 large_holder_max_sell_pct: parseFloat(largeHolderMaxSellPct),
+
+                // Advanced configuration
+                max_consecutive_failures: parseInt(maxConsecutiveFailures),
+                fee_percentage: parseFloat(feePercentage),
+                max_dump_logs: parseInt(maxDumpLogs),
+
+                // Dynamic adjustments
+                dynamic_adjustment_enabled: dynamicAdjustmentEnabled,
+                secondary_critical_ratio: parseFloat(secondaryCriticalRatio),
+                secondary_low_ratio: parseFloat(secondaryLowRatio),
+                secondary_high_ratio: parseFloat(secondaryHighRatio),
+                buy_boost_critical: parseFloat(buyBoostCritical),
+                buy_boost_low: parseFloat(buyBoostLow),
+                buy_reduce_high: parseFloat(buyReduceHigh),
+                max_buy_probability: parseFloat(maxBuyProbability),
+                min_buy_probability: parseFloat(minBuyProbability),
+
+                // Secondary protection
+                min_secondary_tokens: parseInt(minSecondaryTokens),
+                max_buyable_ratio: parseFloat(maxBuyableRatio),
+
+                // Chart config
+                candlestick_interval_seconds: parseInt(candlestickInterval),
+                max_price_history: parseInt(maxPriceHistory),
+
                 transaction_interval_seconds: parseFloat(txInterval)
             };
 

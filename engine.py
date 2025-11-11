@@ -77,16 +77,17 @@ class SimulationEngine:
             "transaction_count": len(self.transaction_history)
         }
 
-    def initial_liquidity(self, first_purchase_percentage: float) -> Dict:
+    def initial_liquidity(self, first_purchase_percentage: float, fee_percentage: float = 0.01) -> Dict:
         """
         PASO 1: Initial liquidity provision by LP (user_id = 0)
         This is the initial purchase by the issuer - puts capital and receives initial tokens
 
         Args:
             first_purchase_percentage: Percentage of total supply (0-100)
+            fee_percentage: Fee percentage (default 0.01 = 1%)
 
         Returns:
-            Transaction details including fee (1% of amount_eur)
+            Transaction details including fee
         """
         first_purchase_liquidity = (first_purchase_percentage / 100) * self.total_supply
 
@@ -94,8 +95,8 @@ class SimulationEngine:
         tokens_to_purchase = first_purchase_liquidity
         amount_eur = tokens_to_purchase * price
 
-        # Calculate fee: 1% of the initial liquidity purchase (does NOT affect AMM)
-        fee = amount_eur * 0.01
+        # Calculate fee: configurable % of the initial liquidity purchase (does NOT affect AMM)
+        fee = amount_eur * fee_percentage
 
         # Update circulation and primary availability
         self.tokens_in_circulation += tokens_to_purchase
