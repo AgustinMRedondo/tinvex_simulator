@@ -164,6 +164,7 @@ class TradingEngine:
                     self.config.max_sell_percentage
                 )
                 sell_amount = int(user_balance * sell_percentage)  # Convert to INTEGER
+                # Cap small holders to max_sell_tokens for reasonable volumes
                 return min(sell_amount, self.config.max_sell_tokens)
             else:
                 # Large holders: sell percentage (configurable 30-60%)
@@ -172,8 +173,8 @@ class TradingEngine:
                     self.config.large_holder_max_sell_pct
                 )
                 sell_amount = int(user_balance * sell_percentage)  # Convert to INTEGER
-                # Cap to max_sell_tokens if needed
-                return min(sell_amount, self.config.max_sell_tokens)
+                # NO cap for large holders - let them sell their full percentage
+                return sell_amount
     
     def is_primary_phase(self) -> bool:
         """Check if still in primary market phase"""
