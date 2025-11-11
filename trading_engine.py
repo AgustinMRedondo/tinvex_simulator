@@ -17,7 +17,7 @@ class TradeConfig:
     buy_probability: float = 0.55  # 55% buy, 45% sell
     panic_sell_probability: float = 0.05  # 5% chance of selling 100% of holdings
     min_tokens: int = 1
-    max_tokens: int = 10000
+    max_tokens: int = 15000  # Changed from 10000 to 15000 for more realistic trading
     max_consecutive_failures: int = 20  # Stop after this many consecutive failed trades
 
 
@@ -26,13 +26,14 @@ class TradingEngine:
     Continuous trading engine - one transaction at a time
     """
     
-    def __init__(self, simulation_engine, config: Optional[TradeConfig] = None):
+    def __init__(self, simulation_engine, config: Optional[TradeConfig] = None, initial_fees: float = 0.0):
         """
         Initialize trading engine
 
         Args:
             simulation_engine: Instance of SimulationEngine
             config: Trading configuration
+            initial_fees: Initial fees from setup (liquidity pool creation)
         """
         self.engine = simulation_engine
         self.config = config or TradeConfig()
@@ -40,7 +41,7 @@ class TradingEngine:
         self.is_running = False
         self.trade_count = 0
         self.price_history: List[Dict] = []
-        self.total_fees_generated = 0.0  # Track fees (1% on buys + 1% on sells)
+        self.total_fees_generated = initial_fees  # Start with initial fees from liquidity pool
     
     def get_random_user(self) -> Optional[int]:
         """Get a random user ID (excluding LP)"""
@@ -64,10 +65,10 @@ class TradingEngine:
             Amount of tokens to trade
         """
         if is_buy:
-            # Random buy amount
+            # Random buy amount: 1 to 15,000 tokens
             return random.randint(self.config.min_tokens, self.config.max_tokens)
         else:
-            # Random sell amount (capped to user balance)
+            # Random sell amount - INCREASED for more secondary market liquidity
             user_balance = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
 
             if user_balance <= 0:
@@ -77,8 +78,20 @@ class TradingEngine:
             if force_all:
                 return user_balance
 
-            max_sell = min(user_balance, self.config.max_tokens)
-            return random.uniform(1, max_sell) if max_sell >= 1 else 0
+            # IMPROVED: Holders sell larger quantities (20-80% of balance)
+            # This ensures more tokens go to secondary market
+            if user_balance < 100:
+                # Small holders: sell 1 to all their tokens
+                max_sell = min(user_balance, self.config.max_tokens)
+                return random.uniform(1, max_sell) if max_sell >= 1 else 0
+            else:
+                # Larger holders: sell 20% to 80% of their balance
+                min_sell_pct = 0.20  # 20%
+                max_sell_pct = 0.80  # 80%
+                sell_percentage = random.uniform(min_sell_pct, max_sell_pct)
+                sell_amount = user_balance * sell_percentage
+                # Cap to max_tokens if needed
+                return min(sell_amount, self.config.max_tokens)
     
     def is_primary_phase(self) -> bool:
         """Check if still in primary market phase"""

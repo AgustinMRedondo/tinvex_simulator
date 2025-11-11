@@ -86,13 +86,16 @@ class SimulationEngine:
             first_purchase_percentage: Percentage of total supply (0-100)
 
         Returns:
-            Transaction details
+            Transaction details including fee (1% of amount_eur)
         """
         first_purchase_liquidity = (first_purchase_percentage / 100) * self.total_supply
 
         price = self.initial_price
         tokens_to_purchase = first_purchase_liquidity
         amount_eur = tokens_to_purchase * price
+
+        # Calculate fee: 1% of the initial liquidity purchase (does NOT affect AMM)
+        fee = amount_eur * 0.01
 
         # Update circulation and primary availability
         self.tokens_in_circulation += tokens_to_purchase
@@ -113,7 +116,8 @@ class SimulationEngine:
             'action': 'liquidity',
             'tokens_bought': tokens_to_purchase,
             'amount_eur': amount_eur,
-            'price': price
+            'price': price,
+            'fee': fee
         }
         self.transaction_history.append(transaction)
 
@@ -125,7 +129,8 @@ class SimulationEngine:
             "message": f"Initial purchase of {tokens_to_purchase} tokens for {amount_eur} EUR at {price} EUR/token",
             "tokens_in_circulation": self.tokens_in_circulation,
             "tokens_available_primary": self.tokens_available_primary,
-            "lp_balance": self.user_balance[user_id]['tokens']
+            "lp_balance": self.user_balance[user_id]['tokens'],
+            "fee": fee  # Return fee for tracking
         }
 
     def create_users(self, total_users: int) -> Dict:
