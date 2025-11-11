@@ -312,8 +312,9 @@ async def setup_auto_trading(request: AutoTradingSetupRequest):
     if not liquidity_result.get("success"):
         return {"success": False, "message": "Failed to initialize liquidity"}
 
-    # Capture initial fee from liquidity pool creation (1% of initial purchase)
+    # Capture initial fee and volume from liquidity pool creation
     initial_fee = liquidity_result.get("fee", 0.0)
+    initial_volume = liquidity_result.get("amount_eur", 0.0)
 
     # Step 2: Create users
     result = engine.create_users(request.num_users)
@@ -328,13 +329,13 @@ async def setup_auto_trading(request: AutoTradingSetupRequest):
         if not distribution_result.get("success"):
             return {"success": False, "message": f"Failed to distribute tokens: {distribution_result.get('message')}"}
 
-    # Step 4: Setup trading engine with custom probabilities and initial fees
+    # Step 4: Setup trading engine with custom probabilities, initial fees and volume
     config = TradeConfig(
         transaction_interval_seconds=request.transaction_interval_seconds,
         buy_probability=request.buy_probability_percentage / 100.0,  # Convert % to decimal
         panic_sell_probability=request.panic_sell_probability_percentage / 100.0  # Convert % to decimal
     )
-    trading_engine = TradingEngine(engine, config, initial_fees=initial_fee)
+    trading_engine = TradingEngine(engine, config, initial_fees=initial_fee, initial_volume=initial_volume)
 
     return {
         "success": True,

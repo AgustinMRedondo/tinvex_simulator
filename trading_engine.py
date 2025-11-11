@@ -16,8 +16,10 @@ class TradeConfig:
     transaction_interval_seconds: float = 0.5  # Time between transactions
     buy_probability: float = 0.55  # 55% buy, 45% sell
     panic_sell_probability: float = 0.05  # 5% chance of selling 100% of holdings
-    min_tokens: int = 1
-    max_tokens: int = 15000  # Changed from 10000 to 15000 for more realistic trading
+    min_buy_tokens: int = 1
+    max_buy_tokens: int = 5000  # REDUCED from 15000 to 5000 - smaller buy volumes
+    min_sell_tokens: int = 1
+    max_sell_tokens: int = 20000  # INCREASED to 20000 - larger sell volumes for more secondary liquidity
     max_consecutive_failures: int = 20  # Stop after this many consecutive failed trades
 
 
@@ -26,7 +28,7 @@ class TradingEngine:
     Continuous trading engine - one transaction at a time
     """
     
-    def __init__(self, simulation_engine, config: Optional[TradeConfig] = None, initial_fees: float = 0.0):
+    def __init__(self, simulation_engine, config: Optional[TradeConfig] = None, initial_fees: float = 0.0, initial_volume: float = 0.0):
         """
         Initialize trading engine
 
@@ -34,6 +36,7 @@ class TradingEngine:
             simulation_engine: Instance of SimulationEngine
             config: Trading configuration
             initial_fees: Initial fees from setup (liquidity pool creation)
+            initial_volume: Initial volume from liquidity pool creation
         """
         self.engine = simulation_engine
         self.config = config or TradeConfig()
@@ -42,6 +45,7 @@ class TradingEngine:
         self.trade_count = 0
         self.price_history: List[Dict] = []
         self.total_fees_generated = initial_fees  # Start with initial fees from liquidity pool
+        self.total_volume_eur = initial_volume  # Track total volume (sum of all transaction values in EUR)
     
     def get_random_user(self) -> Optional[int]:
         """Get a random user ID (excluding LP)"""
@@ -65,10 +69,10 @@ class TradingEngine:
             Amount of tokens to trade
         """
         if is_buy:
-            # Random buy amount: 1 to 15,000 tokens
-            return random.randint(self.config.min_tokens, self.config.max_tokens)
+            # REDUCED buy amounts: 1 to 5,000 tokens for lower buy pressure
+            return random.randint(self.config.min_buy_tokens, self.config.max_buy_tokens)
         else:
-            # Random sell amount - INCREASED for more secondary market liquidity
+            # INCREASED sell amounts for more secondary market liquidity
             user_balance = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
 
             if user_balance <= 0:
@@ -78,20 +82,20 @@ class TradingEngine:
             if force_all:
                 return user_balance
 
-            # IMPROVED: Holders sell larger quantities (20-80% of balance)
-            # This ensures more tokens go to secondary market
+            # IMPROVED: Holders sell LARGER quantities (40-95% of balance)
+            # This ensures MUCH more tokens go to secondary market
             if user_balance < 100:
                 # Small holders: sell 1 to all their tokens
-                max_sell = min(user_balance, self.config.max_tokens)
+                max_sell = min(user_balance, self.config.max_sell_tokens)
                 return random.uniform(1, max_sell) if max_sell >= 1 else 0
             else:
-                # Larger holders: sell 20% to 80% of their balance
-                min_sell_pct = 0.20  # 20%
-                max_sell_pct = 0.80  # 80%
+                # Larger holders: sell 40% to 95% of their balance (INCREASED)
+                min_sell_pct = 0.40  # 40% (was 20%)
+                max_sell_pct = 0.95  # 95% (was 80%)
                 sell_percentage = random.uniform(min_sell_pct, max_sell_pct)
                 sell_amount = user_balance * sell_percentage
-                # Cap to max_tokens if needed
-                return min(sell_amount, self.config.max_tokens)
+                # Cap to max_sell_tokens if needed
+                return min(sell_amount, self.config.max_sell_tokens)
     
     def is_primary_phase(self) -> bool:
         """Check if still in primary market phase"""
@@ -139,6 +143,9 @@ class TradingEngine:
                     fee = amount_eur * 0.01
                     self.total_fees_generated += fee
 
+                    # Track volume: add transaction value to total volume
+                    self.total_volume_eur += amount_eur
+
                     self.price_history.append({
                         "trade_number": self.trade_count,
                         "price": self.engine.current_price,
@@ -177,6 +184,9 @@ class TradingEngine:
                     fee = amount_eur * 0.01
                     self.total_fees_generated += fee
 
+                    # Track volume: add transaction value to total volume
+                    self.total_volume_eur += amount_eur
+
                     self.price_history.append({
                         "trade_number": self.trade_count,
                         "price": self.engine.current_price,
@@ -214,6 +224,9 @@ class TradingEngine:
                 payout_eur = last_tx.get("payout_eur", 0)
                 fee = payout_eur * 0.01
                 self.total_fees_generated += fee
+
+                # Track volume: add sell payout to total volume
+                self.total_volume_eur += payout_eur
 
                 self.price_history.append({
                     "trade_number": self.trade_count,
@@ -335,13 +348,27 @@ class TradingEngine:
 
     def get_stats(self) -> Dict:
         """Get trading statistics"""
+        # Calculate market value and liquidity ratio
+        current_price = self.engine.current_price
+        tokens_in_circulation = self.engine.tokens_in_circulation
+        current_liquidity = self.engine.current_liquidity
+
+        # Market Value = tokens in circulation × current price
+        market_value = tokens_in_circulation * current_price
+
+        # Liquidity vs Market Value ratio (%)
+        liquidity_ratio = (current_liquidity / market_value * 100) if market_value > 0 else 0
+
         if not self.price_history:
             return {
                 "total_trades": 0,
                 "price_change": 0,
                 "price_min": 0,
                 "price_max": 0,
-                "total_fees_generated": 0.0
+                "total_fees_generated": 0.0,
+                "total_volume_eur": self.total_volume_eur,
+                "market_value": market_value,
+                "liquidity_ratio_percent": liquidity_ratio
             }
 
         prices = [p["price"] for p in self.price_history]
@@ -357,5 +384,8 @@ class TradingEngine:
             "price_max": max(prices),
             "price_history": self.price_history[-100:],  # Last 100 for chart
             "candlestick_data": self.get_candlestick_data(60),  # 1 minute candles
-            "total_fees_generated": self.total_fees_generated
+            "total_fees_generated": self.total_fees_generated,
+            "total_volume_eur": self.total_volume_eur,  # NEW: Total trading volume
+            "market_value": market_value,  # NEW: Market capitalization
+            "liquidity_ratio_percent": liquidity_ratio  # NEW: Liquidity/Market Value %
         }
