@@ -19,7 +19,7 @@ class InitRequest(BaseModel):
 
 class CreateUsersRequest(BaseModel):
     """Create users for simulation"""
-    total_users: int = Field(..., ge=1, le=100, description="Number of users to create")
+    total_users: int = Field(..., ge=1, description="Number of users to create (no upper limit)")
 
 
 class LiquidityDistributionRequest(BaseModel):

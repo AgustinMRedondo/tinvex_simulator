@@ -137,33 +137,40 @@ class SimulationEngine:
     def create_users(self, total_users: int) -> Dict:
         """
         PASO 2: Create users with random desired token amounts
+        OPTIMIZED: For large user counts (>1000), only creates user_balance entries
+        without storing full user objects in users_list
 
         Args:
             total_users: Number of users to create
 
         Returns:
-            List of created users
+            Summary of created users
         """
         self.users_list = []
+
+        # Optimization: For large user counts, don't store users_list
+        store_users_list = total_users <= 1000
 
         for i in range(1, total_users + 1):
             name = f"User_{i}"
             desired = random.randint(self.min_tokens, self.max_tokens)
 
-            # List for primary purchases
-            self.users_list.append({
-                "id": i,
-                "name": name,
-                "desired_tokens": desired
-            })
+            # Only store in users_list if user count is reasonable
+            if store_users_list:
+                self.users_list.append({
+                    "id": i,
+                    "name": name,
+                    "desired_tokens": desired
+                })
 
-            # Register in balances with 0 tokens
+            # Always register in balances with 0 tokens (required for trading)
             self.user_balance[i] = {"name": name, "tokens": 0.0}
 
         return {
             "success": True,
-            "message": f"Created {len(self.users_list)} users",
-            "users": self.users_list
+            "message": f"Created {total_users} users",
+            "users": self.users_list if store_users_list else [],
+            "total_users": total_users
         }
 
     def liquidity_distribution(self, to_distribute: Optional[int] = None) -> Dict:

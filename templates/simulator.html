@@ -119,10 +119,21 @@
                 <p class="text-xs text-gray-400 mt-1">Time between each transaction (0.5s = 2 trades/second)</p>
             </div>
             
-            <button onclick="setupTrading()" 
+            <button onclick="setupTrading()" id="setupBtn"
                     class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all">
                 🚀 Setup Auto-Trading
             </button>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden mt-4 p-4 bg-gray-700 rounded-lg border border-cyan-500">
+                <div class="flex items-center justify-center space-x-3">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
+                    <div>
+                        <p class="text-cyan-400 font-semibold">Setting up simulation...</p>
+                        <p class="text-gray-400 text-sm" id="loadingMessage">This may take a while for large configurations (10M+ users)</p>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Control Panel -->
@@ -347,6 +358,13 @@
         });
 
         async function setupTrading() {
+            // Show loading indicator and disable button
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const setupBtn = document.getElementById('setupBtn');
+            loadingIndicator.classList.remove('hidden');
+            setupBtn.disabled = true;
+            setupBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
             const totalSupply = document.getElementById('totalSupply').value;
             const numUsers = document.getElementById('numUsers').value;
             const initialLiquidity = document.getElementById('initialLiquidity').value;
@@ -378,6 +396,16 @@
                 large_holder_max_sell_pct: parseFloat(largeHolderMaxSellPct),
                 transaction_interval_seconds: parseFloat(txInterval)
             };
+
+            // Update loading message based on size
+            const loadingMsg = document.getElementById('loadingMessage');
+            if (config.num_users > 1000000) {
+                loadingMsg.textContent = `Setting up ${(config.num_users / 1000000).toFixed(1)}M users... This may take 30-60 seconds`;
+            } else if (config.num_users > 100000) {
+                loadingMsg.textContent = `Setting up ${(config.num_users / 1000).toFixed(0)}K users... Please wait`;
+            } else {
+                loadingMsg.textContent = 'Initializing simulation...';
+            }
 
             console.log('🚀 Setup config:', config);
             console.log(`   Total Supply: ${config.total_supply.toLocaleString()} tokens`);
@@ -438,13 +466,18 @@
                     priceChart.data.datasets[0].data = [];
                     priceChart.update();
                 } else {
-                    document.getElementById('tradingStatus').innerHTML = 
+                    document.getElementById('tradingStatus').innerHTML =
                         `<span class="text-red-400">❌ Setup Failed: ${data.message}</span>`;
                 }
             } catch (error) {
                 console.error('Setup error:', error);
-                document.getElementById('tradingStatus').innerHTML = 
+                document.getElementById('tradingStatus').innerHTML =
                     `<span class="text-red-400">❌ Error: ${error.message}</span>`;
+            } finally {
+                // Hide loading indicator and re-enable button
+                loadingIndicator.classList.add('hidden');
+                setupBtn.disabled = false;
+                setupBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         }
 
