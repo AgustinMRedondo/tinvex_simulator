@@ -38,7 +38,6 @@ class TradeConfig:
 
     # Initial dump configuration
     initial_dump_probability: float = 0.15
-    max_initial_dumps: int = 1000  # LIMIT to prevent blocking with large user counts
 
     max_consecutive_failures: int = 50
 
@@ -177,7 +176,7 @@ class TradingEngine:
     def execute_initial_dumps(self) -> Dict:
         """
         Execute initial dumps after liquidity_distribution
-        Limited number to prevent blocking with large user counts
+        No limits - executes for all users based on probability
 
         Returns:
             Dict with dump statistics
@@ -186,17 +185,15 @@ class TradingEngine:
         if not eligible_users:
             return {"success": False, "message": "No eligible users", "dumps_executed": 0}
 
-        # Calculate how many users will dump
+        # Calculate how many users will dump (based on probability, NO LIMIT)
         target_dumps = int(len(eligible_users) * self.config.initial_dump_probability)
-        # LIMIT to prevent blocking with huge user counts
-        target_dumps = min(target_dumps, self.config.max_initial_dumps)
 
-        # Calculate actual percentage after applying limit
+        # Calculate actual percentage
         actual_percentage = (target_dumps / len(eligible_users) * 100) if eligible_users else 0
 
         print(f"\n💥 Executing initial dumps...")
         print(f"   Target: {target_dumps:,} users ({actual_percentage:.3f}% of {len(eligible_users):,} total)")
-        print(f"   Config: {self.config.initial_dump_probability * 100:.0f}% probability, capped at {self.config.max_initial_dumps:,} max")
+        print(f"   Config: {self.config.initial_dump_probability * 100:.0f}% probability (no limit)")
 
         # Randomly select users to dump
         users_to_dump = random.sample(eligible_users, min(target_dumps, len(eligible_users)))
