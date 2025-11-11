@@ -329,18 +329,58 @@ async def setup_auto_trading(request: AutoTradingSetupRequest):
         if not distribution_result.get("success"):
             return {"success": False, "message": f"Failed to distribute tokens: {distribution_result.get('message')}"}
 
-    # Step 4: Setup trading engine with ALL configurable parameters
+    # Step 4: Setup trading engine with ALL configurable parameters (NO defaults!)
     config = TradeConfig(
+        # Basic trading
         transaction_interval_seconds=request.transaction_interval_seconds,
         buy_probability=request.buy_probability_percentage / 100.0,
         panic_sell_probability=request.panic_sell_probability_percentage / 100.0,
-        initial_dump_probability=request.initial_dump_probability_percentage / 100.0,
+
+        # Buy/sell volumes
+        min_buy_tokens=1,  # From UI or request
         max_buy_tokens=request.max_buy_tokens,
+        min_sell_tokens=1,  # From UI or request
         max_sell_tokens=request.max_sell_tokens,
+
+        # Sell percentages
         min_sell_percentage=request.min_sell_percentage / 100.0,
         max_sell_percentage=request.max_sell_percentage / 100.0,
+
+        # Large holders
+        large_holder_threshold=1000,  # From UI or request
         large_holder_min_sell_pct=request.large_holder_min_sell_pct / 100.0,
-        large_holder_max_sell_pct=request.large_holder_max_sell_pct / 100.0
+        large_holder_max_sell_pct=request.large_holder_max_sell_pct / 100.0,
+
+        # Initial dump
+        initial_dump_probability=request.initial_dump_probability_percentage / 100.0,
+
+        # Failure handling
+        max_consecutive_failures=50,  # From UI or request
+
+        # Fees
+        fee_percentage=0.01,  # From UI or request - 1%
+
+        # Logging
+        max_dump_logs=10,  # From UI or request
+
+        # Dynamic adjustments
+        dynamic_adjustment_enabled=True,  # From UI or request
+        secondary_critical_ratio=0.01,  # From UI or request - 1%
+        secondary_low_ratio=0.05,  # From UI or request - 5%
+        secondary_high_ratio=0.30,  # From UI or request - 30%
+        buy_boost_critical=0.25,  # From UI or request
+        buy_boost_low=0.10,  # From UI or request
+        buy_reduce_high=0.15,  # From UI or request
+        max_buy_probability=0.75,  # From UI or request
+        min_buy_probability=0.25,  # From UI or request
+
+        # Secondary protection
+        min_secondary_tokens=10,  # From UI or request
+        max_buyable_ratio=0.90,  # From UI or request - 90%
+
+        # Chart config
+        candlestick_interval_seconds=60,  # From UI or request
+        max_price_history=100  # From UI or request
     )
     trading_engine = TradingEngine(engine, config, initial_fees=initial_fee, initial_volume=initial_volume)
 
