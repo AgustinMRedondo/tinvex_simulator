@@ -49,49 +49,49 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Buy Probability (%)</label>
-                    <input type="number" id="buyProbability" value="55" step="1" min="0" max="100"
+                    <input type="number" id="buyProbability" value="60" step="1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
-                    <p class="text-xs text-gray-400 mt-1">Chance of buy vs sell</p>
+                    <p class="text-xs text-gray-400 mt-1">Base rate (dynamically adjusted)</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">Panic Sell Probability (%)</label>
-                    <input type="number" id="panicSellProbability" value="5" step="0.1" min="0" max="100"
+                    <input type="number" id="panicSellProbability" value="2" step="0.1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
                     <p class="text-xs text-gray-400 mt-1">Chance of 100% sell during trading</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2 text-gray-300">🔥 Initial Dump (%)</label>
-                    <input type="number" id="initialDumpProbability" value="45" step="1" min="0" max="100"
+                    <input type="number" id="initialDumpProbability" value="15" step="1" min="0" max="100"
                            class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:border-blue-500 focus:outline-none">
-                    <p class="text-xs text-gray-400 mt-1">% of users who dump 100% at start</p>
+                    <p class="text-xs text-gray-400 mt-1">% who dump at start (max 1000 users)</p>
                 </div>
             </div>
 
             <!-- Advanced Volume Configuration -->
             <div class="bg-gray-700 border border-gray-600 rounded p-4 mb-4">
-                <h3 class="text-lg font-semibold mb-3 text-cyan-400">⚙️ Volume Configuration</h3>
+                <h3 class="text-lg font-semibold mb-3 text-cyan-400">⚙️ Volume Configuration (Conservative)</h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-300">Max Buy Tokens</label>
-                        <input type="number" id="maxBuyTokens" value="3000" step="100"
+                        <input type="number" id="maxBuyTokens" value="10000" step="100"
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
                         <p class="text-xs text-gray-400 mt-1">Max tokens per buy</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-300">Max Sell Tokens</label>
-                        <input type="number" id="maxSellTokens" value="50000" step="1000"
+                        <input type="number" id="maxSellTokens" value="30000" step="1000"
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
                         <p class="text-xs text-gray-400 mt-1">Max tokens per sell</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-300">Min Sell % (Small)</label>
-                        <input type="number" id="minSellPercentage" value="60" step="5" min="0" max="100"
+                        <input type="number" id="minSellPercentage" value="20" step="5" min="0" max="100"
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
                         <p class="text-xs text-gray-400 mt-1">Min % sold (small holders)</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-300">Max Sell % (Small)</label>
-                        <input type="number" id="maxSellPercentage" value="100" step="5" min="0" max="100"
+                        <input type="number" id="maxSellPercentage" value="50" step="5" min="0" max="100"
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
                         <p class="text-xs text-gray-400 mt-1">Max % sold (small holders)</p>
                     </div>
@@ -99,15 +99,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-300">Min Sell % (Large)</label>
-                        <input type="number" id="largeHolderMinSellPct" value="70" step="5" min="0" max="100"
+                        <input type="number" id="largeHolderMinSellPct" value="30" step="5" min="0" max="100"
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
-                        <p class="text-xs text-gray-400 mt-1">Min % sold (large holders)</p>
+                        <p class="text-xs text-gray-400 mt-1">Min % sold (large holders >1000)</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2 text-gray-300">Max Sell % (Large)</label>
-                        <input type="number" id="largeHolderMaxSellPct" value="100" step="5" min="0" max="100"
+                        <input type="number" id="largeHolderMaxSellPct" value="60" step="5" min="0" max="100"
                                class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
-                        <p class="text-xs text-gray-400 mt-1">Max % sold (large holders)</p>
+                        <p class="text-xs text-gray-400 mt-1">Max % sold (large holders >1000)</p>
                     </div>
                 </div>
             </div>

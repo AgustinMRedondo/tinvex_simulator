@@ -14,32 +14,33 @@ from dataclasses import dataclass
 class TradeConfig:
     """Configuration for trading simulation - ALL parameters configurable"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
-    buy_probability: float = 0.55  # 55% buy, 45% sell
-    panic_sell_probability: float = 0.05  # 5% chance of selling 100% of holdings
+    buy_probability: float = 0.60  # 60% buy, 40% sell (INCREASED buy pressure)
+    panic_sell_probability: float = 0.02  # 2% chance (REDUCED from 5%)
 
-    # Buy volumes
+    # Buy volumes (INCREASED)
     min_buy_tokens: int = 1
-    max_buy_tokens: int = 3000  # REDUCED from 5000 to 3000 - even smaller buy pressure
+    max_buy_tokens: int = 10000  # INCREASED from 3000 - more buy pressure
 
-    # Sell volumes (CONFIGURABLE)
+    # Sell volumes (REDUCED to prevent secondary depletion)
     min_sell_tokens: int = 1
-    max_sell_tokens: int = 50000  # MASSIVELY INCREASED from 20000 to 50000
+    max_sell_tokens: int = 30000  # REDUCED from 50000
 
-    # Sell percentage ranges (CONFIGURABLE)
-    min_sell_percentage: float = 0.60  # Small holders sell 60-100% (was 40%)
-    max_sell_percentage: float = 1.0   # Can sell up to 100%
+    # Sell percentage ranges (SIGNIFICANTLY REDUCED)
+    min_sell_percentage: float = 0.20  # Small holders sell 20-50% (was 60-100%)
+    max_sell_percentage: float = 0.50   # Much more conservative
 
     # Large holder threshold (CONFIGURABLE)
-    large_holder_threshold: int = 100  # Tokens needed to be "large holder"
+    large_holder_threshold: int = 1000  # INCREASED from 100 - fewer "large" holders
 
-    # Large holder sell percentages (CONFIGURABLE)
-    large_holder_min_sell_pct: float = 0.70  # Large holders sell 70-100% (was 40-95%)
-    large_holder_max_sell_pct: float = 1.0   # Can sell 100%
+    # Large holder sell percentages (REDUCED)
+    large_holder_min_sell_pct: float = 0.30  # Large holders sell 30-60% (was 70-100%)
+    large_holder_max_sell_pct: float = 0.60   # Much more conservative
 
-    # Initial dump configuration (NEW - CRITICAL for secondary liquidity)
-    initial_dump_probability: float = 0.45  # 45% of token receivers dump 100% immediately
+    # Initial dump configuration (REDUCED and LIMITED)
+    initial_dump_probability: float = 0.15  # REDUCED from 45% to 15%
+    max_initial_dumps: int = 1000  # LIMIT to prevent blocking with large user counts
 
-    max_consecutive_failures: int = 20  # Stop after this many consecutive failed trades
+    max_consecutive_failures: int = 50  # INCREASED from 20 for large scenarios
 
 
 class TradingEngine:
@@ -72,8 +73,31 @@ class TradingEngine:
         return random.choice(eligible_users) if eligible_users else None
     
     def should_buy(self) -> bool:
-        """Determine if next action should be buy (55%) or sell (45%)"""
-        return random.random() < self.config.buy_probability
+        """
+        Determine if next action should be buy or sell
+        DYNAMICALLY ADJUSTED based on secondary market health
+        """
+        # Get secondary market ratio (0-1)
+        total_supply = self.engine.total_supply
+        secondary_tokens = self.engine.tokens_available_secondary
+        secondary_ratio = secondary_tokens / total_supply if total_supply > 0 else 0
+
+        # Base buy probability
+        buy_prob = self.config.buy_probability
+
+        # DYNAMIC ADJUSTMENT: Increase buy probability when secondary is low
+        if secondary_ratio < 0.01:  # Less than 1% of supply in secondary
+            # FORCE MORE BUYS when secondary is critically low
+            buy_prob = 0.95  # 95% buy probability
+        elif secondary_ratio < 0.05:  # Less than 5% of supply
+            buy_prob = min(0.85, buy_prob + 0.25)  # Increase by 25%
+        elif secondary_ratio < 0.10:  # Less than 10% of supply
+            buy_prob = min(0.75, buy_prob + 0.15)  # Increase by 15%
+        elif secondary_ratio > 0.50:  # More than 50% of supply in secondary
+            # Encourage sells when secondary is too high
+            buy_prob = max(0.40, buy_prob - 0.20)  # Decrease by 20%
+
+        return random.random() < buy_prob
     
     def get_trade_amount(self, user_id: int, is_buy: bool, force_all: bool = False) -> float:
         """
@@ -126,52 +150,66 @@ class TradingEngine:
 
     def execute_initial_dumps(self) -> Dict:
         """
-        CRITICAL: Execute initial dumps after liquidity_distribution
-        40-50% (configurable) of token receivers dump 100% of their tokens immediately
-        This creates MASSIVE secondary market liquidity at the start
+        Execute initial dumps after liquidity_distribution
+        Limited number to prevent blocking with large user counts
 
         Returns:
             Dict with dump statistics
         """
-        print(f"\n💥 Executing initial dumps ({self.config.initial_dump_probability * 100}% of users)...")
-
         eligible_users = [uid for uid in self.engine.user_balance.keys() if uid != 0]
         if not eligible_users:
             return {"success": False, "message": "No eligible users", "dumps_executed": 0}
 
+        # Calculate how many users will dump
+        target_dumps = int(len(eligible_users) * self.config.initial_dump_probability)
+        # LIMIT to prevent blocking with huge user counts
+        target_dumps = min(target_dumps, self.config.max_initial_dumps)
+
+        print(f"\n💥 Executing initial dumps ({self.config.initial_dump_probability * 100:.1f}% of users, max {self.config.max_initial_dumps})...")
+        print(f"   Target dumps: {target_dumps} out of {len(eligible_users)} users")
+
+        # Randomly select users to dump
+        users_to_dump = random.sample(eligible_users, min(target_dumps, len(eligible_users)))
+
         dumps_executed = 0
         total_tokens_dumped = 0.0
         total_eur_from_dumps = 0.0
+        failed_dumps = 0
 
-        for user_id in eligible_users:
-            # Each user has initial_dump_probability chance to dump 100%
-            if random.random() < self.config.initial_dump_probability:
-                user_tokens = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
+        for user_id in users_to_dump:
+            user_tokens = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
 
-                if user_tokens > 0:
-                    # DUMP 100% of tokens
-                    result = self.engine.sell(user_id, user_tokens)
+            if user_tokens > 0:
+                # DUMP 100% of tokens
+                result = self.engine.sell(user_id, user_tokens)
 
-                    if result.get("success"):
-                        dumps_executed += 1
-                        total_tokens_dumped += user_tokens
+                if result.get("success"):
+                    dumps_executed += 1
+                    total_tokens_dumped += user_tokens
 
-                        # Track fees and volume
-                        last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
-                        payout_eur = last_tx.get("payout_eur", 0)
-                        fee = payout_eur * 0.01
+                    # Track fees and volume
+                    last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
+                    payout_eur = last_tx.get("payout_eur", 0)
+                    fee = payout_eur * 0.01
 
-                        self.total_fees_generated += fee
-                        self.total_volume_eur += payout_eur
-                        total_eur_from_dumps += payout_eur
+                    self.total_fees_generated += fee
+                    self.total_volume_eur += payout_eur
+                    total_eur_from_dumps += payout_eur
 
+                    # Only log first 10 dumps to avoid spam
+                    if dumps_executed <= 10:
                         print(f"   💸 User {user_id} dumped {user_tokens:.0f} tokens → €{payout_eur:.2f}")
+                else:
+                    failed_dumps += 1
+                    if failed_dumps == 1:
+                        print(f"   ⚠️ Some dumps failed (e.g., insufficient liquidity)")
 
         print(f"\n✅ Initial dumps complete:")
         print(f"   Users dumped: {dumps_executed}/{len(eligible_users)} ({dumps_executed/len(eligible_users)*100:.1f}%)")
-        print(f"   Tokens dumped: {total_tokens_dumped:.0f}")
-        print(f"   EUR from dumps: €{total_eur_from_dumps:.2f}")
-        print(f"   Secondary market now: {self.engine.tokens_available_secondary:.0f} tokens\n")
+        print(f"   Tokens dumped: {total_tokens_dumped:,.0f}")
+        print(f"   EUR from dumps: €{total_eur_from_dumps:,.2f}")
+        print(f"   Secondary market: {self.engine.tokens_available_secondary:,.0f} tokens")
+        print(f"   Liquidity remaining: €{self.engine.current_liquidity:,.2f}\n")
 
         return {
             "success": True,
@@ -180,7 +218,8 @@ class TradingEngine:
             "dump_percentage": dumps_executed / len(eligible_users) * 100 if eligible_users else 0,
             "total_tokens_dumped": total_tokens_dumped,
             "total_eur_from_dumps": total_eur_from_dumps,
-            "secondary_market_after": self.engine.tokens_available_secondary
+            "secondary_market_after": self.engine.tokens_available_secondary,
+            "liquidity_after_dumps": self.engine.current_liquidity
         }
     
     def execute_single_trade(self) -> Dict:
@@ -252,8 +291,17 @@ class TradingEngine:
                 if self.engine.tokens_available_secondary <= 0:
                     return {"success": False, "reason": "No secondary supply"}
 
+                # Ensure minimum tokens in secondary before allowing purchase
+                if self.engine.tokens_available_secondary < 10:
+                    return {"success": False, "reason": "Secondary supply too low (< 10 tokens)"}
+
                 amount = self.get_trade_amount(user_id, is_buy=True)
-                amount = min(amount, self.engine.tokens_available_secondary)
+                # Don't buy more than 90% of secondary supply to maintain liquidity
+                max_buyable = self.engine.tokens_available_secondary * 0.90
+                amount = min(amount, max_buyable)
+
+                if amount < 1:
+                    return {"success": False, "reason": "Calculated amount too small"}
 
                 result = self.engine.purchase_secondary(user_id, amount)
 
