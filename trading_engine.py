@@ -14,7 +14,7 @@ from dataclasses import dataclass
 class TradeConfig:
     """Configuration for trading simulation - ALL parameters configurable"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
-    buy_probability: float = 0.60  # 60% buy, 40% sell (INCREASED buy pressure)
+    buy_probability: float = 0.50  # 50% buy, 50% sell (BALANCED)
     panic_sell_probability: float = 0.02  # 2% chance (REDUCED from 5%)
 
     # Buy volumes (INCREASED)
@@ -82,26 +82,25 @@ class TradingEngine:
         secondary_tokens = self.engine.tokens_available_secondary
         secondary_ratio = secondary_tokens / total_supply if total_supply > 0 else 0
 
-        # Base buy probability
+        # Base buy probability (50/50)
         buy_prob = self.config.buy_probability
 
-        # DYNAMIC ADJUSTMENT: Increase buy probability when secondary is low
+        # MODERATE DYNAMIC ADJUSTMENT: Only adjust when critically low or very high
         if secondary_ratio < 0.01:  # Less than 1% of supply in secondary
-            # FORCE MORE BUYS when secondary is critically low
-            buy_prob = 0.95  # 95% buy probability
-        elif secondary_ratio < 0.05:  # Less than 5% of supply
-            buy_prob = min(0.85, buy_prob + 0.25)  # Increase by 25%
-        elif secondary_ratio < 0.10:  # Less than 10% of supply
-            buy_prob = min(0.75, buy_prob + 0.15)  # Increase by 15%
+            # Increase buys when critically low
+            buy_prob = min(0.80, buy_prob + 0.30)  # Max 80% buy
+        elif secondary_ratio < 0.03:  # Less than 3% of supply
+            buy_prob = min(0.65, buy_prob + 0.15)  # Moderate increase
         elif secondary_ratio > 0.50:  # More than 50% of supply in secondary
             # Encourage sells when secondary is too high
-            buy_prob = max(0.40, buy_prob - 0.20)  # Decrease by 20%
+            buy_prob = max(0.35, buy_prob - 0.15)  # Decrease to 35% buy
 
         return random.random() < buy_prob
     
-    def get_trade_amount(self, user_id: int, is_buy: bool, force_all: bool = False) -> float:
+    def get_trade_amount(self, user_id: int, is_buy: bool, force_all: bool = False) -> int:
         """
         Get random trade amount - FULLY CONFIGURABLE
+        Returns INTEGER tokens only (no fractions)
 
         Args:
             user_id: User ID
@@ -109,38 +108,38 @@ class TradingEngine:
             force_all: If True and selling, sell all tokens (panic sell)
 
         Returns:
-            Amount of tokens to trade
+            Amount of tokens to trade (INTEGER)
         """
         if is_buy:
-            # Buy amounts: configurable min/max
+            # Buy amounts: configurable min/max (already integers)
             return random.randint(self.config.min_buy_tokens, self.config.max_buy_tokens)
         else:
             # SELL amounts - MAXIMIZED for secondary market liquidity
-            user_balance = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
+            user_balance = int(self.engine.user_balance.get(user_id, {}).get("tokens", 0))
 
             if user_balance <= 0:
                 return 0
 
-            # Panic sell: sell 100% of holdings
+            # Panic sell: sell 100% of holdings (integer)
             if force_all:
                 return user_balance
 
             # Small holders vs Large holders (threshold configurable)
             if user_balance < self.config.large_holder_threshold:
-                # Small holders: sell higher % (configurable 60-100%)
+                # Small holders: sell percentage (configurable 20-50%)
                 sell_percentage = random.uniform(
                     self.config.min_sell_percentage,
                     self.config.max_sell_percentage
                 )
-                sell_amount = user_balance * sell_percentage
+                sell_amount = int(user_balance * sell_percentage)  # Convert to INTEGER
                 return min(sell_amount, self.config.max_sell_tokens)
             else:
-                # Large holders: sell VERY high % (configurable 70-100%)
+                # Large holders: sell percentage (configurable 30-60%)
                 sell_percentage = random.uniform(
                     self.config.large_holder_min_sell_pct,
                     self.config.large_holder_max_sell_pct
                 )
-                sell_amount = user_balance * sell_percentage
+                sell_amount = int(user_balance * sell_percentage)  # Convert to INTEGER
                 # Cap to max_sell_tokens if needed
                 return min(sell_amount, self.config.max_sell_tokens)
     
@@ -487,8 +486,11 @@ class TradingEngine:
         tokens_in_circulation = self.engine.tokens_in_circulation
         current_liquidity = self.engine.current_liquidity
 
-        # Market Value = tokens in circulation × current price
-        market_value = tokens_in_circulation * current_price
+        # Market Value = tokens held by USERS (excluding LP) × current price
+        # LP tokens should not count towards market cap (they're treasury/reserve)
+        lp_tokens = self.engine.user_balance.get(0, {}).get("tokens", 0)
+        user_tokens = tokens_in_circulation - lp_tokens
+        market_value = user_tokens * current_price
 
         # Liquidity vs Market Value ratio (%)
         liquidity_ratio = (current_liquidity / market_value * 100) if market_value > 0 else 0
