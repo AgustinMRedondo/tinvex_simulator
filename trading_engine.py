@@ -12,14 +12,33 @@ from dataclasses import dataclass
 
 @dataclass
 class TradeConfig:
-    """Configuration for trading simulation"""
+    """Configuration for trading simulation - ALL parameters configurable"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
     buy_probability: float = 0.55  # 55% buy, 45% sell
     panic_sell_probability: float = 0.05  # 5% chance of selling 100% of holdings
+
+    # Buy volumes
     min_buy_tokens: int = 1
-    max_buy_tokens: int = 5000  # REDUCED from 15000 to 5000 - smaller buy volumes
+    max_buy_tokens: int = 3000  # REDUCED from 5000 to 3000 - even smaller buy pressure
+
+    # Sell volumes (CONFIGURABLE)
     min_sell_tokens: int = 1
-    max_sell_tokens: int = 20000  # INCREASED to 20000 - larger sell volumes for more secondary liquidity
+    max_sell_tokens: int = 50000  # MASSIVELY INCREASED from 20000 to 50000
+
+    # Sell percentage ranges (CONFIGURABLE)
+    min_sell_percentage: float = 0.60  # Small holders sell 60-100% (was 40%)
+    max_sell_percentage: float = 1.0   # Can sell up to 100%
+
+    # Large holder threshold (CONFIGURABLE)
+    large_holder_threshold: int = 100  # Tokens needed to be "large holder"
+
+    # Large holder sell percentages (CONFIGURABLE)
+    large_holder_min_sell_pct: float = 0.70  # Large holders sell 70-100% (was 40-95%)
+    large_holder_max_sell_pct: float = 1.0   # Can sell 100%
+
+    # Initial dump configuration (NEW - CRITICAL for secondary liquidity)
+    initial_dump_probability: float = 0.45  # 45% of token receivers dump 100% immediately
+
     max_consecutive_failures: int = 20  # Stop after this many consecutive failed trades
 
 
@@ -58,7 +77,7 @@ class TradingEngine:
     
     def get_trade_amount(self, user_id: int, is_buy: bool, force_all: bool = False) -> float:
         """
-        Get random trade amount
+        Get random trade amount - FULLY CONFIGURABLE
 
         Args:
             user_id: User ID
@@ -69,10 +88,10 @@ class TradingEngine:
             Amount of tokens to trade
         """
         if is_buy:
-            # REDUCED buy amounts: 1 to 5,000 tokens for lower buy pressure
+            # Buy amounts: configurable min/max
             return random.randint(self.config.min_buy_tokens, self.config.max_buy_tokens)
         else:
-            # INCREASED sell amounts for more secondary market liquidity
+            # SELL amounts - MAXIMIZED for secondary market liquidity
             user_balance = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
 
             if user_balance <= 0:
@@ -82,17 +101,21 @@ class TradingEngine:
             if force_all:
                 return user_balance
 
-            # IMPROVED: Holders sell LARGER quantities (40-95% of balance)
-            # This ensures MUCH more tokens go to secondary market
-            if user_balance < 100:
-                # Small holders: sell 1 to all their tokens
-                max_sell = min(user_balance, self.config.max_sell_tokens)
-                return random.uniform(1, max_sell) if max_sell >= 1 else 0
+            # Small holders vs Large holders (threshold configurable)
+            if user_balance < self.config.large_holder_threshold:
+                # Small holders: sell higher % (configurable 60-100%)
+                sell_percentage = random.uniform(
+                    self.config.min_sell_percentage,
+                    self.config.max_sell_percentage
+                )
+                sell_amount = user_balance * sell_percentage
+                return min(sell_amount, self.config.max_sell_tokens)
             else:
-                # Larger holders: sell 40% to 95% of their balance (INCREASED)
-                min_sell_pct = 0.40  # 40% (was 20%)
-                max_sell_pct = 0.95  # 95% (was 80%)
-                sell_percentage = random.uniform(min_sell_pct, max_sell_pct)
+                # Large holders: sell VERY high % (configurable 70-100%)
+                sell_percentage = random.uniform(
+                    self.config.large_holder_min_sell_pct,
+                    self.config.large_holder_max_sell_pct
+                )
                 sell_amount = user_balance * sell_percentage
                 # Cap to max_sell_tokens if needed
                 return min(sell_amount, self.config.max_sell_tokens)
@@ -100,6 +123,65 @@ class TradingEngine:
     def is_primary_phase(self) -> bool:
         """Check if still in primary market phase"""
         return self.engine.tokens_available_primary > 0
+
+    def execute_initial_dumps(self) -> Dict:
+        """
+        CRITICAL: Execute initial dumps after liquidity_distribution
+        40-50% (configurable) of token receivers dump 100% of their tokens immediately
+        This creates MASSIVE secondary market liquidity at the start
+
+        Returns:
+            Dict with dump statistics
+        """
+        print(f"\n💥 Executing initial dumps ({self.config.initial_dump_probability * 100}% of users)...")
+
+        eligible_users = [uid for uid in self.engine.user_balance.keys() if uid != 0]
+        if not eligible_users:
+            return {"success": False, "message": "No eligible users", "dumps_executed": 0}
+
+        dumps_executed = 0
+        total_tokens_dumped = 0.0
+        total_eur_from_dumps = 0.0
+
+        for user_id in eligible_users:
+            # Each user has initial_dump_probability chance to dump 100%
+            if random.random() < self.config.initial_dump_probability:
+                user_tokens = self.engine.user_balance.get(user_id, {}).get("tokens", 0)
+
+                if user_tokens > 0:
+                    # DUMP 100% of tokens
+                    result = self.engine.sell(user_id, user_tokens)
+
+                    if result.get("success"):
+                        dumps_executed += 1
+                        total_tokens_dumped += user_tokens
+
+                        # Track fees and volume
+                        last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
+                        payout_eur = last_tx.get("payout_eur", 0)
+                        fee = payout_eur * 0.01
+
+                        self.total_fees_generated += fee
+                        self.total_volume_eur += payout_eur
+                        total_eur_from_dumps += payout_eur
+
+                        print(f"   💸 User {user_id} dumped {user_tokens:.0f} tokens → €{payout_eur:.2f}")
+
+        print(f"\n✅ Initial dumps complete:")
+        print(f"   Users dumped: {dumps_executed}/{len(eligible_users)} ({dumps_executed/len(eligible_users)*100:.1f}%)")
+        print(f"   Tokens dumped: {total_tokens_dumped:.0f}")
+        print(f"   EUR from dumps: €{total_eur_from_dumps:.2f}")
+        print(f"   Secondary market now: {self.engine.tokens_available_secondary:.0f} tokens\n")
+
+        return {
+            "success": True,
+            "dumps_executed": dumps_executed,
+            "total_users": len(eligible_users),
+            "dump_percentage": dumps_executed / len(eligible_users) * 100 if eligible_users else 0,
+            "total_tokens_dumped": total_tokens_dumped,
+            "total_eur_from_dumps": total_eur_from_dumps,
+            "secondary_market_after": self.engine.tokens_available_secondary
+        }
     
     def execute_single_trade(self) -> Dict:
         """

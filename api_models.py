@@ -54,13 +54,27 @@ class SimulateRequest(BaseModel):
 
 
 class AutoTradingSetupRequest(BaseModel):
-    """Setup auto-trading simulation - ALL parameters required"""
+    """Setup auto-trading simulation - ALL parameters required and configurable"""
     total_supply: int = Field(..., gt=0, description="Total token supply")
     num_users: int = Field(..., gt=0, description="Number of users to create")
     initial_liquidity_percentage: float = Field(..., gt=0, le=100, description="% of supply for initial liquidity")
     max_slippage_percentage: float = Field(..., gt=0, le=100, description="Maximum slippage % for secondary market")
+
+    # Trading probabilities
     buy_probability_percentage: float = Field(..., ge=0, le=100, description="% chance of buy vs sell")
     panic_sell_probability_percentage: float = Field(..., ge=0, le=100, description="% chance of selling 100%")
+    initial_dump_probability_percentage: float = Field(..., ge=0, le=100, description="% of users who dump 100% at start")
+
+    # Volume controls
+    max_buy_tokens: int = Field(..., gt=0, description="Maximum tokens per buy")
+    max_sell_tokens: int = Field(..., gt=0, description="Maximum tokens per sell")
+
+    # Sell percentage controls
+    min_sell_percentage: float = Field(..., ge=0, le=100, description="Min % of balance to sell (small holders)")
+    max_sell_percentage: float = Field(..., ge=0, le=100, description="Max % of balance to sell (small holders)")
+    large_holder_min_sell_pct: float = Field(..., ge=0, le=100, description="Min % to sell (large holders)")
+    large_holder_max_sell_pct: float = Field(..., ge=0, le=100, description="Max % to sell (large holders)")
+
     transaction_interval_seconds: float = Field(..., gt=0, description="Seconds between transactions")
 
 
