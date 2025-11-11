@@ -15,32 +15,47 @@ class TradeConfig:
     """Configuration for trading simulation - ALL parameters configurable"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
     buy_probability: float = 0.50  # 50% buy, 50% sell (BALANCED)
-    panic_sell_probability: float = 0.02  # 2% chance (REDUCED from 5%)
+    panic_sell_probability: float = 0.02  # 2% chance
 
-    # Buy volumes (INCREASED)
+    # Buy volumes
     min_buy_tokens: int = 1
-    max_buy_tokens: int = 10000  # INCREASED from 3000 - more buy pressure
+    max_buy_tokens: int = 10000
 
-    # Sell volumes (REDUCED to prevent secondary depletion)
+    # Sell volumes
     min_sell_tokens: int = 1
-    max_sell_tokens: int = 30000  # REDUCED from 50000
+    max_sell_tokens: int = 30000
 
-    # Sell percentage ranges (SIGNIFICANTLY REDUCED)
-    min_sell_percentage: float = 0.20  # Small holders sell 20-50% (was 60-100%)
-    max_sell_percentage: float = 0.50   # Much more conservative
+    # Sell percentage ranges
+    min_sell_percentage: float = 0.20  # Small holders sell 20-50%
+    max_sell_percentage: float = 0.50
 
-    # Large holder threshold (CONFIGURABLE)
-    large_holder_threshold: int = 1000  # INCREASED from 100 - fewer "large" holders
+    # Large holder threshold
+    large_holder_threshold: int = 1000
 
-    # Large holder sell percentages (REDUCED)
-    large_holder_min_sell_pct: float = 0.30  # Large holders sell 30-60% (was 70-100%)
-    large_holder_max_sell_pct: float = 0.60   # Much more conservative
+    # Large holder sell percentages
+    large_holder_min_sell_pct: float = 0.30  # Large holders sell 30-60%
+    large_holder_max_sell_pct: float = 0.60
 
-    # Initial dump configuration (REDUCED and LIMITED)
-    initial_dump_probability: float = 0.15  # REDUCED from 45% to 15%
+    # Initial dump configuration
+    initial_dump_probability: float = 0.15
     max_initial_dumps: int = 1000  # LIMIT to prevent blocking with large user counts
 
-    max_consecutive_failures: int = 50  # INCREASED from 20 for large scenarios
+    max_consecutive_failures: int = 50
+
+    # DYNAMIC BUY ADJUSTMENT - ALL CONFIGURABLE (no hardcoding)
+    dynamic_adjustment_enabled: bool = True  # Enable/disable dynamic buy probability
+    secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = critical
+    secondary_low_ratio: float = 0.03  # Secondary < 3% of supply = low
+    secondary_high_ratio: float = 0.50  # Secondary > 50% of supply = high
+    buy_boost_critical: float = 0.30  # Add 30% to buy_prob when critical
+    buy_boost_low: float = 0.15  # Add 15% to buy_prob when low
+    buy_reduce_high: float = 0.15  # Reduce 15% from buy_prob when high
+    max_buy_probability: float = 0.80  # Cap at 80% buy
+    min_buy_probability: float = 0.35  # Floor at 35% buy
+
+    # SECONDARY MARKET PROTECTION - ALL CONFIGURABLE
+    min_secondary_tokens: int = 10  # Don't allow buy if secondary < this
+    max_buyable_ratio: float = 0.90  # Max 90% of secondary can be bought at once
 
 
 class TradingEngine:
@@ -75,25 +90,32 @@ class TradingEngine:
     def should_buy(self) -> bool:
         """
         Determine if next action should be buy or sell
-        DYNAMICALLY ADJUSTED based on secondary market health
+        Uses configured buy_probability in PRIMARY market
+        DYNAMICALLY ADJUSTED based on secondary market health in SECONDARY market (if enabled)
         """
-        # Get secondary market ratio (0-1)
-        total_supply = self.engine.total_supply
-        secondary_tokens = self.engine.tokens_available_secondary
-        secondary_ratio = secondary_tokens / total_supply if total_supply > 0 else 0
-
-        # Base buy probability (50/50)
+        # Base buy probability from config
         buy_prob = self.config.buy_probability
 
-        # MODERATE DYNAMIC ADJUSTMENT: Only adjust when critically low or very high
-        if secondary_ratio < 0.01:  # Less than 1% of supply in secondary
-            # Increase buys when critically low
-            buy_prob = min(0.80, buy_prob + 0.30)  # Max 80% buy
-        elif secondary_ratio < 0.03:  # Less than 3% of supply
-            buy_prob = min(0.65, buy_prob + 0.15)  # Moderate increase
-        elif secondary_ratio > 0.50:  # More than 50% of supply in secondary
-            # Encourage sells when secondary is too high
-            buy_prob = max(0.35, buy_prob - 0.15)  # Decrease to 35% buy
+        # ONLY apply dynamic adjustments if:
+        # 1. Dynamic adjustment is enabled
+        # 2. We are in SECONDARY market (primary exhausted)
+        # 3. Secondary market health requires adjustment
+        if self.config.dynamic_adjustment_enabled and self.engine.tokens_available_primary == 0:
+            # Get secondary market ratio (0-1)
+            total_supply = self.engine.total_supply
+            secondary_tokens = self.engine.tokens_available_secondary
+            secondary_ratio = secondary_tokens / total_supply if total_supply > 0 else 0
+
+            # Apply adjustments based on configurable thresholds
+            if secondary_ratio < self.config.secondary_critical_ratio:
+                # Critical: boost buy probability
+                buy_prob = min(self.config.max_buy_probability, buy_prob + self.config.buy_boost_critical)
+            elif secondary_ratio < self.config.secondary_low_ratio:
+                # Low: moderate boost
+                buy_prob = min(self.config.max_buy_probability, buy_prob + self.config.buy_boost_low)
+            elif secondary_ratio > self.config.secondary_high_ratio:
+                # High: reduce buy probability (encourage sells)
+                buy_prob = max(self.config.min_buy_probability, buy_prob - self.config.buy_reduce_high)
 
         return random.random() < buy_prob
     
@@ -294,13 +316,13 @@ class TradingEngine:
                 if self.engine.tokens_available_secondary <= 0:
                     return {"success": False, "reason": "No secondary supply"}
 
-                # Ensure minimum tokens in secondary before allowing purchase
-                if self.engine.tokens_available_secondary < 10:
-                    return {"success": False, "reason": "Secondary supply too low (< 10 tokens)"}
+                # Ensure minimum tokens in secondary before allowing purchase (configurable)
+                if self.engine.tokens_available_secondary < self.config.min_secondary_tokens:
+                    return {"success": False, "reason": f"Secondary supply too low (< {self.config.min_secondary_tokens} tokens)"}
 
                 amount = self.get_trade_amount(user_id, is_buy=True)
-                # Don't buy more than 90% of secondary supply to maintain liquidity
-                max_buyable = self.engine.tokens_available_secondary * 0.90
+                # Don't buy more than configured ratio of secondary supply to maintain liquidity
+                max_buyable = self.engine.tokens_available_secondary * self.config.max_buyable_ratio
                 amount = min(amount, max_buyable)
 
                 if amount < 1:
