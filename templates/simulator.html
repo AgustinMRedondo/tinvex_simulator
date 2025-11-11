@@ -98,8 +98,8 @@
             </div>
         </div>
         
-        <!-- Market Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <!-- Market Stats Row 1 -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
             <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div class="text-gray-400 text-sm mb-1">Current Price</div>
                 <div id="currentPrice" class="text-3xl font-bold text-green-400">€0.00</div>
@@ -119,6 +119,25 @@
             <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <div class="text-gray-400 text-sm mb-1">Price Change</div>
                 <div id="priceChange" class="text-3xl font-bold text-yellow-400">0%</div>
+            </div>
+        </div>
+
+        <!-- Market Stats Row 2 (NEW) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Volume Generated</div>
+                <div id="volumeGenerated" class="text-3xl font-bold text-cyan-400">€0.00</div>
+                <p class="text-xs text-gray-500 mt-1">Total trading volume</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Market Value</div>
+                <div id="marketValue" class="text-3xl font-bold text-pink-400">€0.00</div>
+                <p class="text-xs text-gray-500 mt-1">Tokens in circulation × price</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <div class="text-gray-400 text-sm mb-1">Liquidity Ratio</div>
+                <div id="liquidityRatio" class="text-3xl font-bold text-indigo-400">0.00%</div>
+                <p class="text-xs text-gray-500 mt-1">Liquidity / Market Value</p>
             </div>
         </div>
 
@@ -427,6 +446,11 @@
                 document.getElementById('priceChange').textContent = '0.00%';
                 document.getElementById('priceChange').className = 'text-3xl font-bold text-gray-400';
 
+                // Reset new metrics (Row 2)
+                document.getElementById('volumeGenerated').textContent = '€0.00';
+                document.getElementById('marketValue').textContent = '€0.00';
+                document.getElementById('liquidityRatio').textContent = '0.00%';
+
                 // Reset market state
                 document.getElementById('circulation').textContent = '0';
                 document.getElementById('primaryAvailable').textContent = '0';
@@ -472,10 +496,28 @@
                 document.getElementById('totalTrades').textContent =
                     statusData.trade_count;
 
-                // Update fees generated (NEW)
+                // Update fees generated
                 if (stats.total_fees_generated !== undefined) {
                     document.getElementById('feesGenerated').textContent =
                         `€${stats.total_fees_generated.toFixed(2)}`;
+                }
+
+                // Update volume generated (NEW)
+                if (stats.total_volume_eur !== undefined) {
+                    document.getElementById('volumeGenerated').textContent =
+                        `€${stats.total_volume_eur.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
+
+                // Update market value (NEW)
+                if (stats.market_value !== undefined) {
+                    document.getElementById('marketValue').textContent =
+                        `€${stats.market_value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                }
+
+                // Update liquidity ratio (NEW)
+                if (stats.liquidity_ratio_percent !== undefined) {
+                    document.getElementById('liquidityRatio').textContent =
+                        `${stats.liquidity_ratio_percent.toFixed(2)}%`;
                 }
 
                 if (stats.price_change_percent !== undefined) {

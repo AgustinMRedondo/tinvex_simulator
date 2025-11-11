@@ -130,7 +130,8 @@ class SimulationEngine:
             "tokens_in_circulation": self.tokens_in_circulation,
             "tokens_available_primary": self.tokens_available_primary,
             "lp_balance": self.user_balance[user_id]['tokens'],
-            "fee": fee  # Return fee for tracking
+            "fee": fee,  # Return fee for tracking
+            "amount_eur": amount_eur  # Return volume for tracking
         }
 
     def create_users(self, total_users: int) -> Dict:
