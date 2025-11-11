@@ -14,7 +14,7 @@ from dataclasses import dataclass
 class TradeConfig:
     """Configuration for trading simulation - ALL parameters configurable"""
     transaction_interval_seconds: float = 0.5  # Time between transactions
-    buy_probability: float = 0.60  # 60% buy, 40% sell - FAN TOKENS: people want to buy & hold
+    buy_probability: float = 0.55  # Base: 55% buy, 45% sell - FAN TOKENS: people want to buy & hold
     panic_sell_probability: float = 0.02  # 2% chance
 
     # Buy volumes
@@ -41,21 +41,32 @@ class TradeConfig:
 
     max_consecutive_failures: int = 50
 
-    # DYNAMIC BUY ADJUSTMENT - GENTLE adjustments for natural fan token behavior
-    # Logic: When secondary low, gently encourage sells to refill (without extremes)
-    dynamic_adjustment_enabled: bool = True  # Enable/disable dynamic buy probability
-    secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = critical LOW
-    secondary_low_ratio: float = 0.05  # Secondary < 5% of supply = low
-    secondary_high_ratio: float = 0.30  # Secondary > 30% of supply = high
-    buy_boost_critical: float = 0.10  # Subtract 10% from buy_prob when critical (gentle)
-    buy_boost_low: float = 0.05  # Subtract 5% from buy_prob when low (very gentle)
-    buy_reduce_high: float = 0.10  # Add 10% to buy_prob when high (gentle)
-    max_buy_probability: float = 0.75  # Cap at 75% buy (realistic max)
-    min_buy_probability: float = 0.45  # Floor at 45% buy (still more buys than sells)
+    # FEE CONFIGURATION - NOT hardcoded
+    fee_percentage: float = 0.01  # 1% fee on all transactions
 
-    # SECONDARY MARKET PROTECTION - ALL CONFIGURABLE
+    # LOGGING CONFIGURATION
+    max_dump_logs: int = 10  # Max number of dump logs to show
+
+    # DYNAMIC BUY ADJUSTMENT - REALISTIC for fan token market
+    # When secondary LOW: MORE SELLS to refill (buy_prob goes BELOW 50%)
+    # When secondary HIGH: MORE BUYS to reduce (buy_prob goes above 60%)
+    dynamic_adjustment_enabled: bool = True
+    secondary_critical_ratio: float = 0.01  # Secondary < 1% of supply = CRITICAL
+    secondary_low_ratio: float = 0.05  # Secondary < 5% of supply = LOW
+    secondary_high_ratio: float = 0.30  # Secondary > 30% of supply = HIGH
+    buy_boost_critical: float = 0.25  # Reduce buy by 25% when critical → 55% - 25% = 30% buy (MORE SELLS)
+    buy_boost_low: float = 0.10  # Reduce buy by 10% when low → 55% - 10% = 45% buy (more sells)
+    buy_reduce_high: float = 0.15  # Increase buy by 15% when high → 55% + 15% = 70% buy (more buys)
+    max_buy_probability: float = 0.75  # Cap at 75% buy
+    min_buy_probability: float = 0.25  # Floor at 25% buy (allows 75% sells when needed)
+
+    # SECONDARY MARKET PROTECTION
     min_secondary_tokens: int = 10  # Don't allow buy if secondary < this
     max_buyable_ratio: float = 0.90  # Max 90% of secondary can be bought at once
+
+    # CHART CONFIGURATION
+    candlestick_interval_seconds: int = 60  # 1 minute candles
+    max_price_history: int = 100  # Last N points for chart
 
 
 class TradingEngine:
@@ -217,14 +228,14 @@ class TradingEngine:
                     # Track fees and volume
                     last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
                     payout_eur = last_tx.get("payout_eur", 0)
-                    fee = payout_eur * 0.01
+                    fee = payout_eur * self.config.fee_percentage
 
                     self.total_fees_generated += fee
                     self.total_volume_eur += payout_eur
                     total_eur_from_dumps += payout_eur
 
-                    # Only log first 10 dumps to avoid spam
-                    if dumps_executed <= 10:
+                    # Only log first N dumps to avoid spam (configurable)
+                    if dumps_executed <= self.config.max_dump_logs:
                         print(f"   💸 User {user_id} dumped {user_tokens:.0f} tokens → €{payout_eur:.2f}")
                 else:
                     failed_dumps += 1
@@ -285,10 +296,10 @@ class TradingEngine:
                 if result.get("success"):
                     self.trade_count += 1
 
-                    # Calculate fees: 1% of purchase value (does NOT affect AMM price/formulas)
+                    # Calculate fees (configurable %) - does NOT affect AMM price/formulas
                     last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
                     amount_eur = last_tx.get("amount_eur", 0)
-                    fee = amount_eur * 0.01
+                    fee = amount_eur * self.config.fee_percentage
                     self.total_fees_generated += fee
 
                     # Track volume: add transaction value to total volume
@@ -327,18 +338,18 @@ class TradingEngine:
                 max_buyable = self.engine.tokens_available_secondary * self.config.max_buyable_ratio
                 amount = min(amount, max_buyable)
 
-                if amount < 1:
-                    return {"success": False, "reason": "Calculated amount too small"}
+                if amount < self.config.min_buy_tokens:
+                    return {"success": False, "reason": f"Calculated amount too small (< {self.config.min_buy_tokens})"}
 
                 result = self.engine.purchase_secondary(user_id, amount)
 
                 if result.get("success"):
                     self.trade_count += 1
 
-                    # Calculate fees: 1% of purchase value (does NOT affect AMM price/formulas)
+                    # Calculate fees (configurable %) - does NOT affect AMM price/formulas
                     last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
                     amount_eur = last_tx.get("amount_eur", 0)
-                    fee = amount_eur * 0.01
+                    fee = amount_eur * self.config.fee_percentage
                     self.total_fees_generated += fee
 
                     # Track volume: add transaction value to total volume
@@ -376,10 +387,10 @@ class TradingEngine:
             if result.get("success"):
                 self.trade_count += 1
 
-                # Calculate fees: 1% of sell payout (does NOT affect AMM price/formulas)
+                # Calculate fees (configurable %) - does NOT affect AMM price/formulas
                 last_tx = self.engine.transaction_history[-1] if self.engine.transaction_history else {}
                 payout_eur = last_tx.get("payout_eur", 0)
-                fee = payout_eur * 0.01
+                fee = payout_eur * self.config.fee_percentage
                 self.total_fees_generated += fee
 
                 # Track volume: add sell payout to total volume
@@ -442,16 +453,19 @@ class TradingEngine:
         self.is_running = False
         print(f"\n⏹️  Trading stopped - Total trades: {self.trade_count}")
     
-    def get_candlestick_data(self, interval_seconds: int = 60) -> List[Dict]:
+    def get_candlestick_data(self, interval_seconds: int = None) -> List[Dict]:
         """
         Generate candlestick (OHLC) data from price history
 
         Args:
-            interval_seconds: Time interval for each candle (default 60 = 1 minute)
+            interval_seconds: Time interval for each candle (uses config if None)
 
         Returns:
             List of candlestick data [{time, open, high, low, close}, ...]
         """
+        if interval_seconds is None:
+            interval_seconds = self.config.candlestick_interval_seconds
+
         if not self.price_history:
             return []
 
@@ -542,8 +556,8 @@ class TradingEngine:
             "price_change_percent": ((final_price - initial_price) / initial_price * 100) if initial_price > 0 else 0,
             "price_min": min(prices),
             "price_max": max(prices),
-            "price_history": self.price_history[-100:],  # Last 100 for chart
-            "candlestick_data": self.get_candlestick_data(60),  # 1 minute candles
+            "price_history": self.price_history[-self.config.max_price_history:],  # Last N for chart
+            "candlestick_data": self.get_candlestick_data(),  # Uses config interval
             "total_fees_generated": self.total_fees_generated,
             "total_volume_eur": self.total_volume_eur,  # NEW: Total trading volume
             "market_value": market_value,  # NEW: Market capitalization
