@@ -1,6 +1,6 @@
 """
 Continuous Auto-Trading Engine for Tinvex AMM Simulator
-Simple continuous trading - one transaction at a time
+SIMPLIFIED - Clean and simple trading logic
 """
 
 import asyncio
@@ -13,59 +13,28 @@ from dataclasses import dataclass
 @dataclass
 class TradeConfig:
     """
-    Configuration for trading simulation - NO defaults, ALL values must be provided
-    This ensures complete flexibility with ZERO hardcoded behavior
+    SIMPLIFIED trading configuration - only essential parameters
     """
-    # Basic trading parameters
-    transaction_interval_seconds: float
-    buy_probability: float
-    panic_sell_probability: float
+    # Basic trading
+    transaction_interval_seconds: float  # Time between trades
+    buy_probability: float  # 0-1, chance of buy vs sell
+    panic_sell_probability: float  # 0-1, chance of selling everything
 
-    # Buy/sell volumes
+    # Volume ranges (simple min/max for both)
     min_buy_tokens: int
     max_buy_tokens: int
     min_sell_tokens: int
     max_sell_tokens: int
 
-    # Sell percentage ranges
-    min_sell_percentage: float
-    max_sell_percentage: float
+    # Initial dump
+    initial_dump_probability: float  # 0-1, % of users who dump at start
 
-    # Large holder configuration
-    large_holder_threshold: int
-    large_holder_min_sell_pct: float
-    large_holder_max_sell_pct: float
+    # Fees
+    fee_percentage: float  # Fee on transactions (e.g., 0.01 = 1%)
 
-    # Initial dump configuration
-    initial_dump_probability: float
-
-    # Failure handling
-    max_consecutive_failures: int
-
-    # Fee configuration
-    fee_percentage: float
-
-    # Logging
-    max_dump_logs: int
-
-    # Dynamic buy adjustment for secondary market health
-    dynamic_adjustment_enabled: bool
-    secondary_critical_ratio: float
-    secondary_low_ratio: float
-    secondary_high_ratio: float
-    buy_boost_critical: float
-    buy_boost_low: float
-    buy_reduce_high: float
-    max_buy_probability: float
-    min_buy_probability: float
-
-    # Secondary market protection
-    min_secondary_tokens: int
-    max_buyable_ratio: float
-
-    # Chart configuration
-    candlestick_interval_seconds: int
-    max_price_history: int
+    # Chart config
+    candlestick_interval_seconds: int = 60
+    max_price_history: int = 100
 
 
 class TradingEngine:
@@ -99,39 +68,14 @@ class TradingEngine:
     
     def should_buy(self) -> bool:
         """
-        Determine if next action should be buy or sell
-        DYNAMICALLY ADJUSTED based on secondary market health (ALWAYS, not just when primary exhausted)
-
-        SIMPLIFIED LOGIC - Applies ALWAYS based on secondary health:
-        - Secondary LOW → MORE SELLS to refill
-        - Secondary HIGH → MORE BUYS to reduce
+        SIMPLE: Determine if next action should be buy or sell
+        Just uses the configured buy_probability - no complex logic
         """
-        # Base buy probability from config
-        buy_prob = self.config.buy_probability
-
-        # Apply dynamic adjustments ALWAYS based on secondary market health
-        if self.config.dynamic_adjustment_enabled:
-            # Get secondary market ratio (0-1)
-            total_supply = self.engine.total_supply
-            secondary_tokens = self.engine.tokens_available_secondary
-            secondary_ratio = secondary_tokens / total_supply if total_supply > 0 else 0
-
-            # Apply adjustments based on configurable thresholds
-            if secondary_ratio < self.config.secondary_critical_ratio:
-                # Critical LOW: REDUCE buy probability → MORE SELLS → Refill secondary
-                buy_prob = max(self.config.min_buy_probability, buy_prob - self.config.buy_boost_critical)
-            elif secondary_ratio < self.config.secondary_low_ratio:
-                # Low: moderate reduction → Encourage sells to refill
-                buy_prob = max(self.config.min_buy_probability, buy_prob - self.config.buy_boost_low)
-            elif secondary_ratio > self.config.secondary_high_ratio:
-                # High: INCREASE buy probability → MORE BUYS → Reduce secondary excess
-                buy_prob = min(self.config.max_buy_probability, buy_prob + self.config.buy_reduce_high)
-
-        return random.random() < buy_prob
+        return random.random() < self.config.buy_probability
     
     def get_trade_amount(self, user_id: int, is_buy: bool, force_all: bool = False) -> int:
         """
-        Get random trade amount - FULLY CONFIGURABLE
+        SIMPLE: Get random trade amount - proportional buy/sell volumes
         Returns INTEGER tokens only (no fractions)
 
         Args:
@@ -143,38 +87,23 @@ class TradingEngine:
             Amount of tokens to trade (INTEGER)
         """
         if is_buy:
-            # Buy amounts: configurable min/max (already integers)
+            # Buy: simple random between min and max
             return random.randint(self.config.min_buy_tokens, self.config.max_buy_tokens)
         else:
-            # SELL amounts - MAXIMIZED for secondary market liquidity
+            # SELL logic
             user_balance = int(self.engine.user_balance.get(user_id, {}).get("tokens", 0))
 
             if user_balance <= 0:
                 return 0
 
-            # Panic sell: sell 100% of holdings (integer)
+            # Panic sell: sell everything
             if force_all:
                 return user_balance
 
-            # Small holders vs Large holders (threshold configurable)
-            if user_balance < self.config.large_holder_threshold:
-                # Small holders: sell percentage (configurable 20-50%)
-                sell_percentage = random.uniform(
-                    self.config.min_sell_percentage,
-                    self.config.max_sell_percentage
-                )
-                sell_amount = int(user_balance * sell_percentage)  # Convert to INTEGER
-                # Cap small holders to max_sell_tokens for reasonable volumes
-                return min(sell_amount, self.config.max_sell_tokens)
-            else:
-                # Large holders: sell percentage (configurable 30-60%)
-                sell_percentage = random.uniform(
-                    self.config.large_holder_min_sell_pct,
-                    self.config.large_holder_max_sell_pct
-                )
-                sell_amount = int(user_balance * sell_percentage)  # Convert to INTEGER
-                # NO cap for large holders - let them sell their full percentage
-                return sell_amount
+            # SIMPLE: Random between min and max (like buys)
+            # Cap to user balance to avoid selling more than owned
+            desired_sell = random.randint(self.config.min_sell_tokens, self.config.max_sell_tokens)
+            return min(desired_sell, user_balance)
     
     def is_primary_phase(self) -> bool:
         """Check if still in primary market phase"""
@@ -230,8 +159,8 @@ class TradingEngine:
                     self.total_volume_eur += payout_eur
                     total_eur_from_dumps += payout_eur
 
-                    # Only log first N dumps to avoid spam (configurable)
-                    if dumps_executed <= self.config.max_dump_logs:
+                    # Only log first 10 dumps to avoid spam
+                    if dumps_executed <= 10:
                         print(f"   💸 User {user_id} dumped {user_tokens:.0f} tokens → €{payout_eur:.2f}")
                 else:
                     failed_dumps += 1
@@ -325,17 +254,12 @@ class TradingEngine:
                 if self.engine.tokens_available_secondary <= 0:
                     return {"success": False, "reason": "No secondary supply"}
 
-                # Ensure minimum tokens in secondary before allowing purchase (configurable)
-                if self.engine.tokens_available_secondary < self.config.min_secondary_tokens:
-                    return {"success": False, "reason": f"Secondary supply too low (< {self.config.min_secondary_tokens} tokens)"}
-
                 amount = self.get_trade_amount(user_id, is_buy=True)
-                # Don't buy more than configured ratio of secondary supply to maintain liquidity
-                max_buyable = self.engine.tokens_available_secondary * self.config.max_buyable_ratio
-                amount = min(amount, max_buyable)
+                # Cap to available secondary supply
+                amount = min(amount, self.engine.tokens_available_secondary)
 
-                if amount < self.config.min_buy_tokens:
-                    return {"success": False, "reason": f"Calculated amount too small (< {self.config.min_buy_tokens})"}
+                if amount <= 0:
+                    return {"success": False, "reason": "No tokens available to buy"}
 
                 result = self.engine.purchase_secondary(user_id, amount)
 

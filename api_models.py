@@ -54,7 +54,7 @@ class SimulateRequest(BaseModel):
 
 
 class AutoTradingSetupRequest(BaseModel):
-    """Setup auto-trading simulation - ALL parameters required and configurable"""
+    """SIMPLIFIED auto-trading setup - only essential parameters"""
     total_supply: int = Field(..., gt=0, description="Total token supply")
     num_users: int = Field(..., gt=0, description="Number of users to create")
     initial_liquidity_percentage: float = Field(..., gt=0, le=100, description="% of supply for initial liquidity")
@@ -65,47 +65,16 @@ class AutoTradingSetupRequest(BaseModel):
     panic_sell_probability_percentage: float = Field(..., ge=0, le=100, description="% chance of selling 100%")
     initial_dump_probability_percentage: float = Field(..., ge=0, le=100, description="% of users who dump 100% at start")
 
-    # Volume controls
+    # Volume ranges - SIMPLE: same logic for buys and sells
     min_buy_tokens: int = Field(..., gt=0, description="Minimum tokens per buy")
     max_buy_tokens: int = Field(..., gt=0, description="Maximum tokens per buy")
     min_sell_tokens: int = Field(..., gt=0, description="Minimum tokens per sell")
     max_sell_tokens: int = Field(..., gt=0, description="Maximum tokens per sell")
 
-    # Sell percentage controls
-    min_sell_percentage: float = Field(..., ge=0, le=100, description="Min % of balance to sell (small holders)")
-    max_sell_percentage: float = Field(..., ge=0, le=100, description="Max % of balance to sell (small holders)")
-    large_holder_threshold: int = Field(..., gt=0, description="Token threshold to be considered large holder")
-    large_holder_min_sell_pct: float = Field(..., ge=0, le=100, description="Min % to sell (large holders)")
-    large_holder_max_sell_pct: float = Field(..., ge=0, le=100, description="Max % to sell (large holders)")
-
-    # Failure handling
-    max_consecutive_failures: int = Field(..., gt=0, description="Max consecutive failures before stopping")
-
     # Fees
     fee_percentage: float = Field(..., gt=0, le=100, description="Fee % on transactions (e.g., 1.0 for 1%)")
 
-    # Logging
-    max_dump_logs: int = Field(..., gt=0, description="Maximum dump logs to display")
-
-    # Dynamic adjustments
-    dynamic_adjustment_enabled: bool = Field(..., description="Enable dynamic buy/sell probability adjustments")
-    secondary_critical_ratio: float = Field(..., ge=0, le=1, description="Critical secondary ratio threshold (decimal)")
-    secondary_low_ratio: float = Field(..., ge=0, le=1, description="Low secondary ratio threshold (decimal)")
-    secondary_high_ratio: float = Field(..., ge=0, le=1, description="High secondary ratio threshold (decimal)")
-    buy_boost_critical: float = Field(..., ge=0, le=1, description="Buy probability reduction when critical (decimal)")
-    buy_boost_low: float = Field(..., ge=0, le=1, description="Buy probability reduction when low (decimal)")
-    buy_reduce_high: float = Field(..., ge=0, le=1, description="Buy probability increase when high (decimal)")
-    max_buy_probability: float = Field(..., ge=0, le=1, description="Maximum buy probability cap (decimal)")
-    min_buy_probability: float = Field(..., ge=0, le=1, description="Minimum buy probability floor (decimal)")
-
-    # Secondary protection
-    min_secondary_tokens: int = Field(..., gt=0, description="Minimum tokens to keep in secondary market")
-    max_buyable_ratio: float = Field(..., ge=0, le=1, description="Max % of secondary market buyable in one tx (decimal)")
-
-    # Chart config
-    candlestick_interval_seconds: int = Field(..., gt=0, description="Candlestick interval in seconds")
-    max_price_history: int = Field(..., gt=0, description="Maximum price history points to keep")
-
+    # Trading interval
     transaction_interval_seconds: float = Field(..., gt=0, description="Seconds between transactions")
 
 
