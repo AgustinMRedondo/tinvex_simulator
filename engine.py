@@ -26,7 +26,7 @@ class SimulationEngine:
         self.total_supply = 0
         self.initial_price = 1.0  # Only hardcoded value
         self.min_tokens = 5
-        self.max_tokens = 30
+        self.max_tokens = 1000
         self.max_slippage = 0.05
 
         # Market state variables
