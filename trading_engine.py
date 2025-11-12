@@ -345,6 +345,7 @@ class TradingEngine:
 
         self.is_running = True
         consecutive_failures = 0
+        MAX_CONSECUTIVE_FAILURES = 50  # Fixed limit to prevent infinite loops
 
         while self.is_running:
             # Execute single trade
@@ -359,7 +360,7 @@ class TradingEngine:
                       f"Amount: {result['amount']:.0f} | Price: €{result['price']:.4f}{fee_display}")
             else:
                 consecutive_failures += 1
-                if consecutive_failures >= self.config.max_consecutive_failures:
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
                     print(f"\n⚠️  {consecutive_failures} consecutive trade failures - stopping to prevent infinite loop")
                     print(f"   Last failure reason: {result.get('reason', 'unknown')}")
                     self.is_running = False
