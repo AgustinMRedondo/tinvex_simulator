@@ -455,6 +455,7 @@ class SimulationEngine:
             S = tokens_available_secondary
             s = max_slippage
             q = quantity_to_buy
+            k = max (s/A, 0.01/100)
 
         Args:
             user_id: Buyer user ID
@@ -502,8 +503,9 @@ class SimulationEngine:
             return {"success": False, "message": "Executable quantity is 0 after caps"}
 
         # Calculate execution price using THE FORMULA
-        numerator = (Y) * (1.0 + s * (q / S))
-        denominator = X - (q ** 2) * (s / S)
+        k = max(s / S, 0.01 / 100)  # min slippage factor
+        numerator = (Y) * (1.0 + s * (k))
+        denominator = X - (q ** 2) * (k)
 
         if denominator <= 0:
             return {"success": False, "message": "Denominator not positive: reduce quantity"}
