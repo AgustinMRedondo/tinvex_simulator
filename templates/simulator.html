@@ -158,7 +158,7 @@
                         💧 INYECTAR
                     </button>
                 </div>
-                <p class="text-xs text-gray-400 mt-2">⚡ Aumenta Y (liquidez) → Precio SUBE (P = Y/X). Funciona durante el trading.</p>
+                <p class="text-xs text-gray-400 mt-2">⚡ Incrementa Y (liquidez). El precio se recalcula con P = Y/X.</p>
                 <div id="injectResult" class="mt-2 text-sm hidden"></div>
             </div>
 
@@ -508,9 +508,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    const priceImpact = data.price_impact_percent.toFixed(2);
                     resultDiv.className = 'mt-2 text-sm text-green-400';
-                    resultDiv.innerHTML = `✅ Inyectados €${amount.toLocaleString()} | Precio: €${data.price_before.toFixed(4)} → €${data.price_after.toFixed(4)} (+${priceImpact}%)`;
+                    resultDiv.innerHTML = `✅ Inyectados €${amount.toLocaleString()} | Pool: €${data.liquidity_before.toLocaleString()} → €${data.liquidity_after.toLocaleString()}`;
                     resultDiv.classList.remove('hidden');
 
                     // Update stats immediately
@@ -780,7 +779,7 @@
                         typeColor = 'text-cyan-400';
                         market = 'Pool';
                         amount = '-';
-                        price = tx.price_after ? tx.price_after.toFixed(4) : '-';
+                        price = '-';
                         total = tx.amount_eur ? tx.amount_eur.toLocaleString() : '-';
                     } else {
                         type = tx.action;

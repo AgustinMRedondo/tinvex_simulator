@@ -653,12 +653,11 @@ class SimulationEngine:
 
     def inject_liquidity(self, amount_eur: float) -> Dict:
         """
-        Inyectar liquidez arbitraria al pool durante la simulación.
-        Esto AUMENTA Y (current_liquidity) sin cambiar X (tokens_in_circulation),
-        por lo que el precio SUBE: P = Y/X
+        Inyectar liquidez arbitraria al pool.
+        Solo incrementa Y (current_liquidity). El precio se recalcula con P = Y/X.
 
         Args:
-            amount_eur: Cantidad en EUR a inyectar al pool
+            amount_eur: Cantidad en EUR a inyectar
 
         Returns:
             Dict con detalles de la operación
@@ -673,30 +672,24 @@ class SimulationEngine:
         price_before = self.current_price
         liquidity_before = self.current_liquidity
 
-        # Inyectar liquidez
+        # Solo incrementar Y
         self.current_liquidity += amount_eur
-
-        # Actualizar precio: P = Y/X
-        self.current_price = self.current_liquidity / self.tokens_in_circulation
 
         # Registrar transacción
         transaction = {
             "action": "liquidity_injection",
             "amount_eur": amount_eur,
             "price_before": price_before,
-            "price_after": self.current_price,
             "liquidity_before": liquidity_before,
-            "liquidity_after": self.current_liquidity,
-            "price_impact_percent": ((self.current_price - price_before) / price_before * 100) if price_before > 0 else 0
+            "liquidity_after": self.current_liquidity
         }
         self.transaction_history.append(transaction)
 
         return {
             "success": True,
             "message": f"Inyectados €{amount_eur:,.2f} al pool",
+            "amount_eur": amount_eur,
             "price_before": price_before,
-            "price_after": self.current_price,
-            "price_impact_percent": transaction["price_impact_percent"],
             "liquidity_before": liquidity_before,
             "liquidity_after": self.current_liquidity
         }
