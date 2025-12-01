@@ -651,6 +651,56 @@ class SimulationEngine:
             "results": results
         }
 
+    def inject_liquidity(self, amount_eur: float) -> Dict:
+        """
+        Inyectar liquidez arbitraria al pool durante la simulación.
+        Esto AUMENTA Y (current_liquidity) sin cambiar X (tokens_in_circulation),
+        por lo que el precio SUBE: P = Y/X
+
+        Args:
+            amount_eur: Cantidad en EUR a inyectar al pool
+
+        Returns:
+            Dict con detalles de la operación
+        """
+        if amount_eur <= 0:
+            return {"success": False, "message": "amount_eur debe ser > 0"}
+
+        if self.tokens_in_circulation <= 0:
+            return {"success": False, "message": "No hay tokens en circulación. Inicializa primero."}
+
+        # Estado anterior
+        price_before = self.current_price
+        liquidity_before = self.current_liquidity
+
+        # Inyectar liquidez
+        self.current_liquidity += amount_eur
+
+        # Actualizar precio: P = Y/X
+        self.current_price = self.current_liquidity / self.tokens_in_circulation
+
+        # Registrar transacción
+        transaction = {
+            "action": "liquidity_injection",
+            "amount_eur": amount_eur,
+            "price_before": price_before,
+            "price_after": self.current_price,
+            "liquidity_before": liquidity_before,
+            "liquidity_after": self.current_liquidity,
+            "price_impact_percent": ((self.current_price - price_before) / price_before * 100) if price_before > 0 else 0
+        }
+        self.transaction_history.append(transaction)
+
+        return {
+            "success": True,
+            "message": f"Inyectados €{amount_eur:,.2f} al pool",
+            "price_before": price_before,
+            "price_after": self.current_price,
+            "price_impact_percent": transaction["price_impact_percent"],
+            "liquidity_before": liquidity_before,
+            "liquidity_after": self.current_liquidity
+        }
+
     def get_top_traders(self, limit: int = 10) -> List[Dict]:
         """
         Get top traders ranked by total value (realized + unrealized gains)

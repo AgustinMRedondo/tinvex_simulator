@@ -14,7 +14,8 @@ from trading_engine import TradingEngine, TradeConfig
 from api_models import (
     InitRequest, CreateUsersRequest, LiquidityDistributionRequest,
     BuyPrimaryRequest, SellRequest, BuySecondaryRequest,
-    MarketStateResponse, ApiResponse, AutoTradingSetupRequest
+    MarketStateResponse, ApiResponse, AutoTradingSetupRequest,
+    InjectLiquidityRequest
 )
 import asyncio
 
@@ -114,11 +115,41 @@ async def create_users(request: CreateUsersRequest):
 async def distribute_liquidity(request: LiquidityDistributionRequest):
     """
     Distribute tokens from LP to users
-    
+
     Args:
         to_distribute: Amount to distribute (None = all LP balance)
     """
     result = engine.liquidity_distribution(request.to_distribute)
+    return result
+
+
+@app.post("/api/liquidity/inject")
+async def inject_liquidity(request: InjectLiquidityRequest):
+    """
+    Inject liquidity into pool during simulation.
+    This increases Y (liquidity) without changing X (tokens in circulation),
+    so price INCREASES: P = Y/X
+
+    Can be called while trading is running.
+
+    Args:
+        amount_eur: Amount in EUR to inject into pool
+    """
+    result = engine.inject_liquidity(request.amount_eur)
+
+    # If trading engine exists, record this event in price history
+    if trading_engine and result.get("success"):
+        import time
+        trading_engine.price_history.append({
+            "trade_number": trading_engine.trade_count,
+            "price": engine.current_price,
+            "timestamp": time.time(),
+            "action": "liquidity_injection",
+            "amount_injected": request.amount_eur
+        })
+        # Also track the volume
+        trading_engine.total_volume_eur += request.amount_eur
+
     return result
 
 

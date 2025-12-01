@@ -116,3 +116,8 @@ class ErrorResponse(BaseModel):
     success: bool = False
     error: str
     details: Optional[str] = None
+
+
+class InjectLiquidityRequest(BaseModel):
+    """Inject liquidity into pool during simulation"""
+    amount_eur: float = Field(..., gt=0, description="Amount in EUR to inject into liquidity pool")
