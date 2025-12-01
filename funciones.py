@@ -340,7 +340,7 @@ def purchase_secondary(user_id: int, quantity_to_buy: float):
 
     Y = current_price*tokens_in_circulation
     X = float(tokens_in_circulation)
-    S = float(tokens_available_secondary)
+    A = float(tokens_available_secondary)
     s = float(max_slippage)
     q_req = float(quantity_to_buy)
 
@@ -365,8 +365,12 @@ def purchase_secondary(user_id: int, quantity_to_buy: float):
         return
 
     # Precio de ejecución según tu fórmula
-    numerator = (Y) * (1.0 + s * (q / S))
-    denominator = X - (q ** 2) * (s / S)
+     # Calculate execution price using THE FORMULA
+    min_s = 0.1 / 100  # 0.1%
+    k = max(s / A, min_s)  # min slippage factor
+    numerator = (Y) * (1.0 + s * (k))
+    denominator = X - (q ** 2) * (k)
+
     if denominator <= 0:
         print("❌ Denominador no positivo: reduce cantidad o revisa estado.")
         return
