@@ -503,7 +503,7 @@ class SimulationEngine:
             return {"success": False, "message": "Executable quantity is 0 after caps"}
 
         # Calculate execution price using THE FORMULA
-        min_s = 1 / 100  # 0.1%
+        min_s = 0.1 / 100  # 0.1%
         k = max(s / S, min_s)  # min slippage factor
         numerator = (Y) * (1.0 + s * (k))
         denominator = X - (q ** 2) * (k)
