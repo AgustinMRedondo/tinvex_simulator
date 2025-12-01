@@ -489,21 +489,21 @@ class SimulationEngine:
         q = min(q_req, S)
 
         # Avoid denominator <= 0: den = X - q^2 * (s/S) > 0
-        if s > 0:
+        #if s > 0:
             # q_max_den ~ sqrt(X * S / s)
-            q_max_den = sqrt((X * S) / s) if X > 0 else 0.0
-            if q >= q_max_den:
-                q = max(0.0, min(q, q_max_den - 1e-9))  # small margin
+        #    q_max_den = sqrt((X * S) / s) if X > 0 else 0.0
+        #    if q >= q_max_den:
+        #        q = max(0.0, min(q, q_max_den - 1e-9))  # small margin
 
         # If s == 0, force s>0 minimally
-        if s <= 0:
-            s = 1e-9
+        #if s <= 0:
+        #    s = 1e-9
 
         if q <= 0:
             return {"success": False, "message": "Executable quantity is 0 after caps"}
 
         # Calculate execution price using THE FORMULA
-        min_s = 5 / 100  # 5%
+        min_s = 0.1 / 100  # 5%
         k = max(q_req / S, min_s)  # min slippage factor
         numerator = (Y) * (1.0 + s * (k))
         denominator = X - (q ** 2) * (s/ S)
