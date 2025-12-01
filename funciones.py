@@ -366,8 +366,8 @@ def purchase_secondary(user_id: int, quantity_to_buy: float):
 
     # Precio de ejecución según tu fórmula
      # Calculate execution price using THE FORMULA
-    min_s = 0.1 / 100  # 0.1%
-    k = max(s / A, min_s)  # min slippage factor
+    min_s = 5 / 100  # 5%
+    k = max(q_req / A, min_s)  # min slippage factor
     numerator = (Y) * (1.0 + s * (k))
     denominator = X - (q ** 2) * (k)
 
