@@ -144,6 +144,24 @@
                 </button>
             </div>
 
+            <!-- Inject Liquidity Panel -->
+            <div class="mt-4 p-4 bg-gray-700 rounded-lg border border-cyan-600">
+                <h3 class="text-lg font-semibold mb-3 text-cyan-400">💉 Inyectar Liquidez (en vivo)</h3>
+                <div class="flex gap-4 items-end">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Cantidad (EUR)</label>
+                        <input type="number" id="injectAmount" value="1000000" step="1000" min="1"
+                               class="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-white focus:border-cyan-500 focus:outline-none">
+                    </div>
+                    <button onclick="injectLiquidity()" id="injectBtn"
+                            class="bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white font-bold py-2 px-6 rounded-lg transition-all h-[42px]">
+                        💧 INYECTAR
+                    </button>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">⚡ Aumenta Y (liquidez) → Precio SUBE (P = Y/X). Funciona durante el trading.</p>
+                <div id="injectResult" class="mt-2 text-sm hidden"></div>
+            </div>
+
             <div id="tradingStatus" class="mt-4 p-4 bg-gray-700 rounded-lg text-center">
                 <span class="text-gray-400">Status: Ready to setup</span>
             </div>
@@ -469,20 +487,66 @@
             }
         }
 
+        async function injectLiquidity() {
+            const amount = parseFloat(document.getElementById('injectAmount').value);
+            const resultDiv = document.getElementById('injectResult');
+
+            if (!amount || amount <= 0) {
+                resultDiv.className = 'mt-2 text-sm text-red-400';
+                resultDiv.textContent = '❌ Introduce una cantidad válida > 0';
+                resultDiv.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/liquidity/inject`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount_eur: amount })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const priceImpact = data.price_impact_percent.toFixed(2);
+                    resultDiv.className = 'mt-2 text-sm text-green-400';
+                    resultDiv.innerHTML = `✅ Inyectados €${amount.toLocaleString()} | Precio: €${data.price_before.toFixed(4)} → €${data.price_after.toFixed(4)} (+${priceImpact}%)`;
+                    resultDiv.classList.remove('hidden');
+
+                    // Update stats immediately
+                    updateStats();
+
+                    // Auto-hide after 5 seconds
+                    setTimeout(() => {
+                        resultDiv.classList.add('hidden');
+                    }, 5000);
+                } else {
+                    resultDiv.className = 'mt-2 text-sm text-red-400';
+                    resultDiv.textContent = `❌ ${data.message}`;
+                    resultDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Inject error:', error);
+                resultDiv.className = 'mt-2 text-sm text-red-400';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+                resultDiv.classList.remove('hidden');
+            }
+        }
+
         async function startTrading() {
             try {
                 const response = await fetch(`${API_BASE}/api/trading/start`, {method: 'POST'});
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    document.getElementById('tradingStatus').innerHTML = 
+                    document.getElementById('tradingStatus').innerHTML =
                         `<span class="text-green-400 animate-pulse">🔥 Trading ACTIVE - Auto-updating...</span>`;
-                    
+
                     // Start auto-update
                     if (updateInterval) clearInterval(updateInterval);
                     updateInterval = setInterval(updateStats, 5000); // Update every 5 seconds
                 } else {
-                    document.getElementById('tradingStatus').innerHTML = 
+                    document.getElementById('tradingStatus').innerHTML =
                         `<span class="text-red-400">❌ ${data.message}</span>`;
                 }
             } catch (error) {
@@ -711,6 +775,13 @@
                         amount = tx.total_distributed || 0;
                         price = '-';
                         total = '-';
+                    } else if (tx.action === 'liquidity_injection') {
+                        type = '💉 INJECT';
+                        typeColor = 'text-cyan-400';
+                        market = 'Pool';
+                        amount = '-';
+                        price = tx.price_after ? tx.price_after.toFixed(4) : '-';
+                        total = tx.amount_eur ? tx.amount_eur.toLocaleString() : '-';
                     } else {
                         type = tx.action;
                         typeColor = 'text-gray-400';
