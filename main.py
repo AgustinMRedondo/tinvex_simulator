@@ -6,8 +6,9 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 import uvicorn
+import json
 
 from engine import SimulationEngine
 from trading_engine import TradingEngine, TradeConfig
@@ -244,7 +245,7 @@ async def execute_secondary_buy_orders(num_orders: int = None):
 async def get_transactions(limit: int = 50):
     """
     Get transaction history
-    
+
     Args:
         limit: Maximum number of transactions to return
     """
@@ -255,6 +256,37 @@ async def get_transactions(limit: int = 50):
         "data": transactions,
         "total": len(engine.transaction_history)
     }
+
+
+@app.get("/api/export/full")
+async def export_full_data():
+    """
+    Export complete simulation data as downloadable JSON file.
+    Includes: state, all transactions, user balances, and trading stats.
+    """
+    export_data = {
+        "market_state": {
+            "total_supply": engine.total_supply,
+            "tokens_in_circulation": engine.tokens_in_circulation,
+            "tokens_available_primary": engine.tokens_available_primary,
+            "tokens_available_secondary": engine.tokens_available_secondary,
+            "current_liquidity": engine.current_liquidity,
+            "current_price": engine.current_price,
+        },
+        "user_balances": engine.user_balance,
+        "user_stats": engine.user_stats,
+        "transactions": engine.transaction_history,
+        "trading_engine_stats": trading_engine.get_stats() if trading_engine else None,
+        "price_history": trading_engine.price_history if trading_engine else []
+    }
+
+    json_str = json.dumps(export_data, indent=2, default=str)
+
+    return Response(
+        content=json_str,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=tinvex_simulation_export.json"}
+    )
 
 
 @app.get("/api/users")
