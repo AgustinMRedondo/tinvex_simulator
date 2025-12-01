@@ -653,12 +653,11 @@ class SimulationEngine:
 
     def inject_liquidity(self, amount_eur: float) -> Dict:
         """
-        Inyectar liquidez al pool durante la simulación.
-        Para mantener el precio estable (P = Y/X), se añaden EUR Y tokens proporcionalmente.
-        Los tokens creados van al LP (user 0) como respaldo.
+        Inyectar liquidez arbitraria al pool.
+        Solo incrementa Y (current_liquidity). El precio se recalcula con P = Y/X.
 
         Args:
-            amount_eur: Cantidad en EUR a inyectar al pool
+            amount_eur: Cantidad en EUR a inyectar
 
         Returns:
             Dict con detalles de la operación
@@ -669,51 +668,28 @@ class SimulationEngine:
         if self.tokens_in_circulation <= 0:
             return {"success": False, "message": "No hay tokens en circulación. Inicializa primero."}
 
-        if self.current_price <= 0:
-            return {"success": False, "message": "Precio actual inválido."}
-
         # Estado anterior
         price_before = self.current_price
         liquidity_before = self.current_liquidity
-        circulation_before = self.tokens_in_circulation
 
-        # Calcular tokens a crear proporcionalmente para mantener el precio
-        # Si P = Y/X, para mantener P constante: new_tokens = amount_eur / P
-        tokens_to_mint = amount_eur / self.current_price
-
-        # Inyectar liquidez Y tokens proporcionalmente
+        # Solo incrementar Y
         self.current_liquidity += amount_eur
-        self.tokens_in_circulation += tokens_to_mint
-
-        # Los tokens creados van al LP (user 0) como respaldo
-        if 0 not in self.user_balance:
-            self.user_balance[0] = {"name": "Liquidity_Provider", "tokens": 0.0}
-        self.user_balance[0]["tokens"] += tokens_to_mint
-
-        # El precio se mantiene: P = Y/X = (Y + amount) / (X + amount/P) = P
-        self.current_price = self.current_liquidity / self.tokens_in_circulation
 
         # Registrar transacción
         transaction = {
             "action": "liquidity_injection",
             "amount_eur": amount_eur,
-            "tokens_minted": tokens_to_mint,
             "price_before": price_before,
-            "price_after": self.current_price,
             "liquidity_before": liquidity_before,
-            "liquidity_after": self.current_liquidity,
-            "circulation_before": circulation_before,
-            "circulation_after": self.tokens_in_circulation
+            "liquidity_after": self.current_liquidity
         }
         self.transaction_history.append(transaction)
 
         return {
             "success": True,
-            "message": f"Inyectados €{amount_eur:,.2f} + {tokens_to_mint:,.2f} tokens al pool",
+            "message": f"Inyectados €{amount_eur:,.2f} al pool",
             "amount_eur": amount_eur,
-            "tokens_minted": tokens_to_mint,
             "price_before": price_before,
-            "price_after": self.current_price,
             "liquidity_before": liquidity_before,
             "liquidity_after": self.current_liquidity
         }

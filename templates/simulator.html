@@ -158,7 +158,7 @@
                         💧 INYECTAR
                     </button>
                 </div>
-                <p class="text-xs text-gray-400 mt-2">⚡ Añade EUR + tokens proporcionalmente → Precio se mantiene (P = Y/X). Los tokens van al LP.</p>
+                <p class="text-xs text-gray-400 mt-2">⚡ Incrementa Y (liquidez). El precio se recalcula con P = Y/X.</p>
                 <div id="injectResult" class="mt-2 text-sm hidden"></div>
             </div>
 
@@ -508,9 +508,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    const tokensMinted = data.tokens_minted ? data.tokens_minted.toLocaleString('en-US', {maximumFractionDigits: 2}) : '0';
                     resultDiv.className = 'mt-2 text-sm text-green-400';
-                    resultDiv.innerHTML = `✅ Inyectados €${amount.toLocaleString()} + ${tokensMinted} tokens | Precio: €${data.price_before.toFixed(4)} → €${data.price_after.toFixed(4)}`;
+                    resultDiv.innerHTML = `✅ Inyectados €${amount.toLocaleString()} | Pool: €${data.liquidity_before.toLocaleString()} → €${data.liquidity_after.toLocaleString()}`;
                     resultDiv.classList.remove('hidden');
 
                     // Update stats immediately
@@ -779,8 +778,8 @@
                         type = '💉 INJECT';
                         typeColor = 'text-cyan-400';
                         market = 'Pool';
-                        amount = tx.tokens_minted ? tx.tokens_minted.toFixed(0) : '-';
-                        price = tx.price_after ? tx.price_after.toFixed(4) : '-';
+                        amount = '-';
+                        price = '-';
                         total = tx.amount_eur ? tx.amount_eur.toLocaleString() : '-';
                     } else {
                         type = tx.action;
